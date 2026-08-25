@@ -71,6 +71,67 @@ const syncUser = async (req, res, next) => {
   }
 };
 
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+const adminLogin = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'BAD_REQUEST', message: 'Email and password are required' }
+      });
+    }
+
+    const user = await User.findOne({ email, role: 'admin' });
+    
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Invalid credentials or inactive account' }
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Invalid credentials' }
+      });
+    }
+
+    const tokenPayload = {
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      name: user.displayName,
+      permissions: user.permissions
+    };
+
+    const token = jwt.sign(
+      tokenPayload,
+      process.env.JWT_SECRET || 'fallback_secret_key_for_dev_only',
+      { expiresIn: '24h' }
+    );
+
+    res.status(200).json({
+      success: true,
+      token,
+      data: {
+        id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
-  syncUser
+  syncUser,
+  adminLogin
 };

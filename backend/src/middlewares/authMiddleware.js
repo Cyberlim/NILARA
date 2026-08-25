@@ -1,54 +1,58 @@
 const { auth } = require('../config/firebase');
 const User = require('../models/User');
 
+const jwt = require('jsonwebtoken');
+
 const requireAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Missing or invalid authorization header'
-        },
+        error: { code: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' },
         requestId: req.requestId
       });
     }
 
-    const idToken = authHeader.substring(7); // 'Bearer '.length === 7
+    const idToken = authHeader.substring(7);
     if (!idToken || idToken.trim().length === 0) {
       return res.status(401).json({
         success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Missing or invalid authorization header'
-        },
+        error: { code: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' },
         requestId: req.requestId
       });
     }
 
+    // 1. Try Custom JWT first
+    try {
+      const decoded = jwt.verify(idToken, process.env.JWT_SECRET || 'fallback_secret_key_for_dev_only');
+      req.auth = {
+        userId: decoded.userId,
+        role: decoded.role,
+        isActive: true,
+        permissions: decoded.permissions || []
+      };
+      return next();
+    } catch (jwtError) {
+      // Not a valid custom JWT, fallback to Firebase
+    }
+
+    // 2. Fallback to Firebase Auth
     let decodedToken;
     try {
       decodedToken = await auth.verifyIdToken(idToken);
     } catch (firebaseError) {
       return res.status(401).json({
         success: false,
-        error: {
-          code: 'INVALID_TOKEN',
-          message: 'The provided token is expired or invalid'
-        },
+        error: { code: 'INVALID_TOKEN', message: 'The provided token is expired or invalid' },
         requestId: req.requestId
       });
     }
 
     const firebaseUid = decodedToken.uid;
-
-    // Attempt to find the user in DB
     const user = await User.findOne({ firebaseUid });
 
     if (!user) {
-      // If no user exists yet, we still set req.auth but without a userId,
-      // so the /api/v1/auth/sync endpoint can create it.
       req.auth = {
         firebaseUid,
         email: decodedToken.email,
@@ -62,15 +66,11 @@ const requireAuth = async (req, res, next) => {
     if (!user.isActive) {
       return res.status(403).json({
         success: false,
-        error: {
-          code: 'ACCOUNT_SUSPENDED',
-          message: 'Your account has been suspended or is inactive.'
-        },
+        error: { code: 'ACCOUNT_SUSPENDED', message: 'Your account has been suspended or is inactive.' },
         requestId: req.requestId
       });
     }
 
-    // Establish trusted backend auth context
     req.auth = {
       firebaseUid: user.firebaseUid,
       userId: user._id.toString(),

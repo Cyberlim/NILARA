@@ -1,8 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { auth } from "@/lib/firebase";
-import { onAuthStateChanged, signOut, getIdToken } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 const AuthContext = createContext();
 
@@ -10,51 +9,42 @@ export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // User is signed in
-        const token = await getIdToken(firebaseUser);
-        
-        // Store token in localStorage for any API clients that might need it synchronously
-        localStorage.setItem("admin_auth_token", token);
-        
-        setIsAuthenticated(true);
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          name: firebaseUser.displayName || "Admin User",
-          token: token
-        });
-      } else {
-        // User is signed out
-        localStorage.removeItem("admin_auth_token");
-        setIsAuthenticated(false);
-        setUser(null);
-      }
-      setIsInitializing(false);
-    });
+    const token = localStorage.getItem("admin_auth_token");
+    const userData = localStorage.getItem("admin_user_data");
 
-    return () => unsubscribe();
+    if (token && userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        setIsAuthenticated(true);
+      } catch (e) {
+        localStorage.removeItem("admin_auth_token");
+        localStorage.removeItem("admin_user_data");
+      }
+    }
+    
+    setIsInitializing(false);
   }, []);
 
-  const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
+  const login = (userData, token) => {
+    localStorage.setItem("admin_auth_token", token);
+    localStorage.setItem("admin_user_data", JSON.stringify(userData));
+    setUser(userData);
+    setIsAuthenticated(true);
+    router.push("/");
   };
 
-  // The actual login logic is handled by the LoginPage calling signInWithEmailAndPassword.
-  // We keep a dummy login function here for backwards compatibility if needed, 
-  // but it shouldn't be used directly anymore.
-  const login = () => {
-    console.warn("login() should be replaced with signInWithEmailAndPassword in LoginPage");
+  const logout = () => {
+    localStorage.removeItem("admin_auth_token");
+    localStorage.removeItem("admin_user_data");
+    setIsAuthenticated(false);
+    setUser(null);
+    router.push("/login");
   };
 
-  // Prevent flash of incorrect state during initial client-side hydration
   if (isInitializing) {
     return null;
   }

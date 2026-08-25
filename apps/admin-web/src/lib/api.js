@@ -1,17 +1,15 @@
-import { auth } from './firebase';
-
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
 export async function fetchWithAuth(endpoint, options = {}) {
-  const user = auth.currentUser;
+  // Can only access localStorage on the client side
+  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_auth_token') : null;
   
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
   };
 
-  if (user) {
-    const token = await user.getIdToken();
+  if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 

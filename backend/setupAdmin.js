@@ -1,6 +1,5 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const { auth } = require('./src/config/firebase');
 const User = require('./src/models/User');
 
 async function setupAdmin() {
@@ -12,36 +11,18 @@ async function setupAdmin() {
     const email = 'admin@nilara.com';
     const password = 'admin123';
     const displayName = 'Super Admin';
+    const bcrypt = require('bcryptjs');
 
-    let firebaseUser;
-    
-    // Check if user already exists in Firebase
-    try {
-      firebaseUser = await auth.getUserByEmail(email);
-      console.log('User already exists in Firebase Auth. Updating password...');
-      await auth.updateUser(firebaseUser.uid, { password, displayName });
-    } catch (error) {
-      if (error.code === 'auth/user-not-found') {
-        console.log('Creating new user in Firebase Auth...');
-        firebaseUser = await auth.createUser({
-          email,
-          password,
-          displayName,
-          emailVerified: true
-        });
-      } else {
-        throw error;
-      }
-    }
-
-    console.log('Firebase User UID:', firebaseUser.uid);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     // Upsert user in MongoDB
     console.log('Updating MongoDB user record...');
     const dbUser = await User.findOneAndUpdate(
-      { firebaseUid: firebaseUser.uid },
+      { email },
       {
         email,
+        password: hashedPassword,
         displayName,
         role: 'admin',
         isActive: true,
@@ -50,7 +31,7 @@ async function setupAdmin() {
       { new: true, upsert: true }
     );
 
-    console.log('Admin user successfully configured!');
+    console.log('Admin user successfully configured in MongoDB!');
     console.log('You can now log in with:');
     console.log('Email:', email);
     console.log('Password:', password);
