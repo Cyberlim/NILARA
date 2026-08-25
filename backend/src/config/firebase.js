@@ -4,7 +4,15 @@ const { getMessaging } = require('firebase-admin/messaging');
 
 let app;
 try {
-  const serviceAccount = require('../../firebase-service-account.json');
+  let serviceAccount;
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // If provided as a JSON string in environment variables (for production)
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } else {
+    // Fallback to local file for development
+    serviceAccount = require('../../firebase-service-account.json');
+  }
+  
   app = initializeApp({
     credential: cert(serviceAccount)
   });
