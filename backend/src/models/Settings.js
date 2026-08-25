@@ -26,6 +26,11 @@ const settingsSchema = new mongoose.Schema({
     required: true,
     default: 10, // Default 10 currency units extra per item/total
   },
+  referralBonusAmount: {
+    type: Number,
+    required: true,
+    default: 100, // Default ₹100 referral bonus
+  },
   subscriptionPlans: [{
     name: { type: String, required: true },
     frequency: { type: String, enum: ['Daily', 'Alternate Days', 'Weekly', 'Monthly'], required: true },
@@ -54,7 +59,20 @@ const settingsSchema = new mongoose.Schema({
   faqs: [{
     question: { type: String, required: true },
     answer: { type: String, required: true }
-  }]
+  }],
+  homeBanners: {
+    type: [{
+      img: { type: String, required: true },
+      actionType: { type: String, enum: ['category', 'bulk_order'], required: true, default: 'category' },
+      searchQuery: { type: String }
+    }],
+    default: [
+      { img: 'assets/images/banner/category_bottle.png.png', actionType: 'category', searchQuery: 'bottle' },
+      { img: 'assets/images/banner/category_bulk.png.png', actionType: 'bulk_order' },
+      { img: 'assets/images/banner/category_can.png.png', actionType: 'category', searchQuery: '20l|can' },
+      { img: 'assets/images/banner/category_carton.png.png', actionType: 'category', searchQuery: 'carton' }
+    ]
+  }
 }, {
   timestamps: true,
 });

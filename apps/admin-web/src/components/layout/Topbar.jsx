@@ -1,9 +1,10 @@
 "use client";
 
-import { Bell, Search, Mail, Menu, X, Receipt, Users, Package, Bike } from "lucide-react";
+import { Bell, Search, Mail, Menu, X, Receipt, Users, Package, Bike, Plus, Clock, AlertCircle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSidebar } from "@/context/SidebarContext";
+import { useAuth } from "@/context/AuthContext";
 import ImageModal from "@/components/common/ImageModal";
 
 export default function Topbar() {
@@ -17,6 +18,7 @@ export default function Topbar() {
   const rightIconsRef = useRef(null);
   const router = useRouter();
   const { setIsOpen } = useSidebar();
+  const { logout } = useAuth();
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -239,7 +241,7 @@ export default function Topbar() {
                 <div onClick={() => { setActiveDropdown(null); router.push('/settings'); }} className="px-4 py-2.5 hover:bg-slate-50 rounded-xl cursor-pointer text-sm font-semibold text-slate-700 transition-colors">Settings</div>
               </div>
               <div className="p-2 border-t border-slate-100">
-                <div onClick={() => { setActiveDropdown(null); alert("Logged out!"); }} className="px-4 py-2.5 hover:bg-red-50 rounded-xl cursor-pointer text-sm font-semibold text-red-600 transition-colors">Log out</div>
+                <div onClick={() => { setActiveDropdown(null); logout(); }} className="px-4 py-2.5 hover:bg-red-50 rounded-xl cursor-pointer text-sm font-semibold text-red-600 transition-colors">Log out</div>
               </div>
             </div>
           )}

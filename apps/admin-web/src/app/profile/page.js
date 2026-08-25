@@ -2,8 +2,10 @@
 
 import { User, Mail, Phone, MapPin, Camera, Shield, LogOut, Edit2, Save } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function ProfilePage() {
+  const { logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("https://api.dicebear.com/7.x/notionists/svg?seed=Admin&backgroundColor=f8fafc");
 
@@ -63,7 +65,10 @@ export default function ProfilePage() {
           </div>
 
           <div className="hidden md:block bg-white rounded-3xl border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] p-2">
-            <button className="w-full flex items-center px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 rounded-2xl transition-colors">
+            <button 
+              onClick={logout}
+              className="w-full flex items-center px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 rounded-2xl transition-colors"
+            >
               <LogOut className="w-4 h-4 mr-3" />
               Log Out
             </button>

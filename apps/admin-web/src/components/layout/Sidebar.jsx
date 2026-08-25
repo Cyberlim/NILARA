@@ -6,9 +6,10 @@ import {
   Home, ShoppingBag, Grid, PackageSearch, Receipt, Users, Bike,
   Calendar, CreditCard, Droplets, MapPin, BadgeDollarSign, HeartHandshake,
   Megaphone, Tag, Image as ImageIcon, Wallet, Banknote, FileText, BadgeCheck, X,
-  Mail, Bell, User, Settings, Layers
+  Mail, Bell, User, Settings, Layers, LogOut
 } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
+import { useAuth } from "@/context/AuthContext";
 import ImageModal from "@/components/common/ImageModal";
 import { useState } from "react";
 
@@ -90,6 +91,7 @@ const SIDEBAR_GROUPS = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { isOpen, setIsOpen } = useSidebar();
+  const { logout } = useAuth();
   const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
 
   return (
@@ -162,8 +164,15 @@ export default function Sidebar() {
           </div>
         ))}
       </nav>
-      <div className="p-4 border-t border-slate-100">
+      <div className="p-4 border-t border-slate-100 flex items-center justify-between">
         <p className="text-xs text-slate-400 font-medium">Nilara Admin v2.0.0</p>
+        <button 
+          onClick={logout}
+          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors group"
+          title="Log Out"
+        >
+          <LogOut className="w-4 h-4 transition-transform group-hover:scale-110" />
+        </button>
       </div>
     </aside>
 

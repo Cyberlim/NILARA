@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings, Shield, Bell, Save, Store, X } from "lucide-react";
+import { Settings, Shield, Bell, Save, Store, X, Image as ImageIcon, Upload } from "lucide-react";
 import { useState, useEffect } from "react";
 import TwoFactorModal from "@/components/settings/TwoFactorModal";
 
@@ -8,6 +8,7 @@ const tabs = [
   { id: "general", label: "General", icon: Settings },
   { id: "fees", label: "Store Fees", icon: Store },
   { id: "support", label: "Support & FAQs", icon: Settings },
+  { id: "banners", label: "Home Banners", icon: ImageIcon },
   { id: "security", label: "Security", icon: Shield },
   { id: "notifications", label: "Notifications", icon: Bell },
 ];
@@ -23,12 +24,14 @@ export default function SettingsPage() {
     handlingCharge: 2,
     deliveryFee: 25,
     freeDeliveryMinAmount: 500,
+    referralBonusAmount: 100,
     contactSupport: {
       phone: 'Available 9 AM to 8 PM',
       email: 'support@nilara.com',
       chatResponseTime: 'Usually replies within 5 minutes'
     },
-    faqs: []
+    faqs: [],
+    homeBanners: []
   });
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
 
@@ -48,7 +51,7 @@ export default function SettingsPage() {
   }, []);
 
   const handleSaveSettings = async () => {
-    if (activeTab === 'fees' || activeTab === 'general' || activeTab === 'support') {
+    if (activeTab === 'fees' || activeTab === 'general' || activeTab === 'support' || activeTab === 'banners') {
       setIsLoadingSettings(true);
       try {
         const res = await fetch('http://localhost:5000/api/v1/settings', {
@@ -68,6 +71,32 @@ export default function SettingsPage() {
       }
     } else {
       alert('Settings saved!');
+    }
+  };
+
+  const handleBannerUpload = async (index, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('images', file);
+    
+    try {
+      const res = await fetch('http://localhost:5000/api/v1/upload/images', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success && data.data.length > 0) {
+        const newBanners = [...(storeSettings.homeBanners || [])];
+        newBanners[index].img = data.data[0];
+        setStoreSettings({ ...storeSettings, homeBanners: newBanners });
+      } else {
+        alert('Upload failed');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Upload failed');
     }
   };
 
@@ -285,6 +314,16 @@ export default function SettingsPage() {
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
                     />
                   </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Referral Bonus Amount (₹)</label>
+                    <input 
+                      type="number" 
+                      value={storeSettings.referralBonusAmount || 100}
+                      onChange={(e) => setStoreSettings({...storeSettings, referralBonusAmount: Number(e.target.value)})}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
+                    />
+                    <p className="text-[10px] font-medium text-slate-400 mt-2">Amount credited to a user's wallet when their referred friend places a first order.</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -453,6 +492,101 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "banners" && (
+            <div className="space-y-8 animate-in fade-in duration-300">
+              <div>
+                <h3 className="text-lg font-black text-slate-800 mb-1">Home Banners</h3>
+                <p className="text-xs font-medium text-slate-500 mb-6">Manage the circular banners on the top of the user app home screen.</p>
+                
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {(storeSettings.homeBanners || []).map((banner, index) => (
+                      <div key={index} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                        <div className="aspect-square bg-white rounded-lg border border-slate-200 overflow-hidden mb-4 relative group flex items-center justify-center">
+                          {banner.img ? (
+                            banner.img.startsWith('http') ? (
+                              <img src={banner.img} alt="Banner" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="text-center p-4">
+                                <ImageIcon className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                                <p className="text-[10px] text-slate-400">Local Asset:<br/>{banner.img.split('/').pop()}</p>
+                              </div>
+                            )
+                          ) : (
+                            <ImageIcon className="w-10 h-10 text-slate-300" />
+                          )}
+                          <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white">
+                            <Upload className="w-6 h-6 mb-2" />
+                            <span className="text-xs font-bold">Upload New</span>
+                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleBannerUpload(index, e)} />
+                          </label>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Action Type</label>
+                            <select 
+                              value={banner.actionType || 'category'} 
+                              onChange={(e) => {
+                                const newBanners = [...(storeSettings.homeBanners || [])];
+                                newBanners[index].actionType = e.target.value;
+                                setStoreSettings({ ...storeSettings, homeBanners: newBanners });
+                              }}
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
+                            >
+                              <option value="category">Category Filter</option>
+                              <option value="bulk_order">Bulk Orders Screen</option>
+                            </select>
+                          </div>
+                          
+                          {banner.actionType !== 'bulk_order' && (
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Search Query / Filter</label>
+                              <input 
+                                type="text"
+                                value={banner.searchQuery || ''}
+                                placeholder="e.g. 20l|can"
+                                onChange={(e) => {
+                                  const newBanners = [...(storeSettings.homeBanners || [])];
+                                  newBanners[index].searchQuery = e.target.value;
+                                  setStoreSettings({ ...storeSettings, homeBanners: newBanners });
+                                }}
+                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
+                              />
+                            </div>
+                          )}
+                          
+                          <button 
+                            onClick={() => {
+                              const newBanners = (storeSettings.homeBanners || []).filter((_, i) => i !== index);
+                              setStoreSettings({ ...storeSettings, homeBanners: newBanners });
+                            }}
+                            className="w-full py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            Remove Banner
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <button 
+                      onClick={() => {
+                        const newBanners = [...(storeSettings.homeBanners || []), { img: '', actionType: 'category', searchQuery: '' }];
+                        setStoreSettings({ ...storeSettings, homeBanners: newBanners });
+                      }}
+                      className="border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center p-6 text-slate-400 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 transition-all min-h-[300px]"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                        <span className="text-xl font-bold">+</span>
+                      </div>
+                      <span className="text-sm font-bold">Add New Banner</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
