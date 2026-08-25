@@ -138,15 +138,19 @@ export default function PlanListModal({ isOpen, onClose, filterType, selectedIte
                 </div>
 
                 <div className="mt-8">
-                  <h4 className="text-xs font-bold text-slate-800 mb-4 uppercase tracking-wider">Plan Features</h4>
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {selectedItem.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start">
-                        <CheckCircle2 className="w-5 h-5 text-teal-500 mr-3 shrink-0" />
-                        <span className="text-sm font-medium text-slate-600">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <h4 className="text-xs font-bold text-slate-800 mb-4 uppercase tracking-wider">Included Products</h4>
+                  {(!selectedItem.includedProducts || selectedItem.includedProducts.length === 0) ? (
+                    <p className="text-sm text-slate-500 italic">No products included.</p>
+                  ) : (
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {selectedItem.includedProducts.map((product, idx) => (
+                        <li key={idx} className="flex items-start">
+                          <CheckCircle2 className="w-5 h-5 text-teal-500 mr-3 shrink-0" />
+                          <span className="text-sm font-medium text-slate-600">{product}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">

@@ -4,12 +4,18 @@ const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(100),
   imageUrl: z.string().trim().url(),
   sortOrder: z.number().int().min(0).optional(),
+  bannerTitle: z.string().trim().max(100).optional(),
+  iconName: z.string().trim().max(50).optional(),
+  subcategories: z.array(z.string().trim().min(1).max(100)).max(20).optional(),
 }).strict();
 
 const updateCategorySchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
   imageUrl: z.string().trim().url().optional(),
   sortOrder: z.number().int().min(0).optional(),
+  bannerTitle: z.string().trim().max(100).optional(),
+  iconName: z.string().trim().max(50).optional(),
+  subcategories: z.array(z.string().trim().min(1).max(100)).max(20).optional(),
   isActive: z.boolean().optional(),
 }).strict();
 

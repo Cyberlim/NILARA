@@ -81,6 +81,45 @@ export default function BulkOrdersModal({ order, onClose, onUpdateStatus }) {
               </div>
             </div>
 
+            {/* Custom Design Details */}
+            {order.customDesign && order.customDesign.isCustom && (
+              <div className="space-y-4 md:col-span-2">
+                <h3 className="font-semibold text-slate-800 border-b border-slate-100 pb-2">Custom Design Details</h3>
+                <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4 grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-slate-500 block mb-1">Event Name</span>
+                    <span className="font-medium text-slate-800">{order.customDesign.eventName || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block mb-1">Theme / Color</span>
+                    <span className="font-medium text-slate-800">{order.customDesign.theme || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block mb-1">Tagline</span>
+                    <span className="font-medium text-slate-800">{order.customDesign.tagline || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block mb-1">Printing Type</span>
+                    <span className="font-medium text-slate-800">{order.customDesign.printingType || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block mb-1">Cap Color</span>
+                    <span className="font-medium text-slate-800">{order.customDesign.capColor || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block mb-1">Label Finish</span>
+                    <span className="font-medium text-slate-800">{order.customDesign.labelFinish || 'N/A'}</span>
+                  </div>
+                  {order.customDesign.specialInstructions && (
+                    <div className="col-span-2">
+                      <span className="text-slate-500 block mb-1">Instructions</span>
+                      <span className="font-medium text-slate-800">{order.customDesign.specialInstructions}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Payment & Address */}
             <div className="space-y-4 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>

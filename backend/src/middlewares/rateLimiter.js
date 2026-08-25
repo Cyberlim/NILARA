@@ -25,7 +25,7 @@ const OTP_VERY_STRICT = rateLimit({
 
 const PUBLIC_STANDARD = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Too many requests. Try again later.' } },
   standardHeaders: true,
   legacyHeaders: false,
@@ -33,7 +33,7 @@ const PUBLIC_STANDARD = rateLimit({
 
 const CUSTOMER_STANDARD = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 1000,
   message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Too many requests. Try again later.' } },
   standardHeaders: true,
   legacyHeaders: false,
@@ -49,7 +49,7 @@ const DELIVERY_STANDARD = rateLimit({
 
 const ADMIN_STRICT = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Too many admin requests. Try again later.' } },
   standardHeaders: true,
   legacyHeaders: false,

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { getAllOrders, updateOrderStatus, getAllCustomers, toggleCustomerSuspension, getDashboardStats, getInventory, getPayments } = require('../controllers/adminController');
+const { getAllOrders, updateOrderStatus, getAllCustomers, toggleCustomerSuspension, getDashboardStats, getInventory, getPayments, getDeliverySchedule, markDeliveryDelivered } = require('../controllers/adminController');
 const { requireAuth } = require('../middlewares/authMiddleware');
 const { requireRole } = require('../middlewares/rbacMiddleware');
 const { validate } = require('../middlewares/validateMiddleware');
@@ -16,6 +16,10 @@ router.use(ADMIN_STRICT);
 
 // Dashboard
 router.get('/dashboard', getDashboardStats);
+
+// Delivery Calendar & Live Deliveries
+router.get('/delivery-schedule', getDeliverySchedule);
+router.post('/live-deliveries/mark-delivered', markDeliveryDelivered);
 
 // Orders
 router.get('/orders', validate({ query: paginationQuerySchema }), getAllOrders);

@@ -1,12 +1,13 @@
 "use client";
 
-import { Settings, Shield, Bell, Save, Store } from "lucide-react";
+import { Settings, Shield, Bell, Save, Store, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import TwoFactorModal from "@/components/settings/TwoFactorModal";
 
 const tabs = [
   { id: "general", label: "General", icon: Settings },
   { id: "fees", label: "Store Fees", icon: Store },
+  { id: "support", label: "Support & FAQs", icon: Settings },
   { id: "security", label: "Security", icon: Shield },
   { id: "notifications", label: "Notifications", icon: Bell },
 ];
@@ -21,7 +22,13 @@ export default function SettingsPage() {
   const [storeSettings, setStoreSettings] = useState({
     handlingCharge: 2,
     deliveryFee: 25,
-    freeDeliveryMinAmount: 500
+    freeDeliveryMinAmount: 500,
+    contactSupport: {
+      phone: 'Available 9 AM to 8 PM',
+      email: 'support@nilara.com',
+      chatResponseTime: 'Usually replies within 5 minutes'
+    },
+    faqs: []
   });
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
 
@@ -41,7 +48,7 @@ export default function SettingsPage() {
   }, []);
 
   const handleSaveSettings = async () => {
-    if (activeTab === 'fees') {
+    if (activeTab === 'fees' || activeTab === 'general' || activeTab === 'support') {
       setIsLoadingSettings(true);
       try {
         const res = await fetch('http://localhost:5000/api/v1/settings', {
@@ -51,7 +58,7 @@ export default function SettingsPage() {
         });
         const data = await res.json();
         if (data.success) {
-          alert('Store fees updated successfully!');
+          alert('Settings updated successfully!');
         }
       } catch (err) {
         console.error("Error saving settings", err);
@@ -60,7 +67,6 @@ export default function SettingsPage() {
         setIsLoadingSettings(false);
       }
     } else {
-      // General save logic placeholder
       alert('Settings saved!');
     }
   };
@@ -180,6 +186,47 @@ export default function SettingsPage() {
                       <option>(GMT-05:00) Eastern Time (US & Canada)</option>
                     </select>
                   </div>
+                  
+                  <div className="pt-4 border-t border-slate-100">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Delivery Time Slots</label>
+                    <p className="text-xs text-slate-500 mb-3">Define the time slots available for customers to choose from.</p>
+                    <div className="space-y-2">
+                      {(storeSettings.deliveryTimeSlots || []).map((slot, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <input 
+                            type="text" 
+                            value={slot}
+                            onChange={(e) => {
+                              const newSlots = [...(storeSettings.deliveryTimeSlots || [])];
+                              newSlots[index] = e.target.value;
+                              setStoreSettings({ ...storeSettings, deliveryTimeSlots: newSlots });
+                            }}
+                            className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const newSlots = (storeSettings.deliveryTimeSlots || []).filter((_, i) => i !== index);
+                              setStoreSettings({ ...storeSettings, deliveryTimeSlots: newSlots });
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const newSlots = [...(storeSettings.deliveryTimeSlots || []), "New Time Slot"];
+                        setStoreSettings({ ...storeSettings, deliveryTimeSlots: newSlots });
+                      }}
+                      className="mt-3 text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg transition-colors inline-block"
+                    >
+                      + Add Time Slot
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -214,11 +261,114 @@ export default function SettingsPage() {
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Free Delivery Minimum Amount (₹)</label>
                     <input 
                       type="number" 
-                      value={storeSettings.freeDeliveryMinAmount}
+                      value={storeSettings.freeDeliveryMinAmount || 500}
                       onChange={(e) => setStoreSettings({...storeSettings, freeDeliveryMinAmount: Number(e.target.value)})}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
                     />
                     <p className="text-[10px] font-medium text-slate-400 mt-2">If item total exceeds this amount, delivery fee will be FREE.</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Custom Design Min Order Quantity</label>
+                    <input 
+                      type="number" 
+                      value={storeSettings.customDesignMinOrder || 100}
+                      onChange={(e) => setStoreSettings({...storeSettings, customDesignMinOrder: Number(e.target.value)})}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Custom Design Surcharge (₹ per bottle)</label>
+                    <input 
+                      type="number" 
+                      value={storeSettings.customDesignSurcharge || 10}
+                      onChange={(e) => setStoreSettings({...storeSettings, customDesignSurcharge: Number(e.target.value)})}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "support" && (
+            <div className="space-y-8 animate-in fade-in duration-300">
+              <div>
+                <h3 className="text-lg font-black text-slate-800 mb-1">Support & FAQs</h3>
+                <p className="text-xs font-medium text-slate-500 mb-6">Manage customer support contact details and frequently asked questions.</p>
+                
+                <div className="space-y-6 max-w-2xl">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Support Email</label>
+                      <input 
+                        type="email" 
+                        value={storeSettings.contactSupport?.email || ''}
+                        onChange={(e) => setStoreSettings({...storeSettings, contactSupport: {...storeSettings.contactSupport, email: e.target.value}})}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Chat Response Time Message</label>
+                    <input 
+                      type="text" 
+                      value={storeSettings.contactSupport?.chatResponseTime || ''}
+                      onChange={(e) => setStoreSettings({...storeSettings, contactSupport: {...storeSettings.contactSupport, chatResponseTime: e.target.value}})}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Frequently Asked Questions (FAQs)</label>
+                    <div className="space-y-4">
+                      {(storeSettings.faqs || []).map((faq, index) => (
+                        <div key={index} className="flex gap-2 items-start border border-slate-200 p-4 rounded-xl bg-slate-50">
+                          <div className="flex-1 space-y-3">
+                            <input 
+                              type="text" 
+                              placeholder="Question"
+                              value={faq.question}
+                              onChange={(e) => {
+                                const newFaqs = [...(storeSettings.faqs || [])];
+                                newFaqs[index].question = e.target.value;
+                                setStoreSettings({ ...storeSettings, faqs: newFaqs });
+                              }}
+                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
+                            />
+                            <textarea 
+                              placeholder="Answer"
+                              value={faq.answer}
+                              onChange={(e) => {
+                                const newFaqs = [...(storeSettings.faqs || [])];
+                                newFaqs[index].answer = e.target.value;
+                                setStoreSettings({ ...storeSettings, faqs: newFaqs });
+                              }}
+                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all h-20 resize-none" 
+                            />
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const newFaqs = (storeSettings.faqs || []).filter((_, i) => i !== index);
+                              setStoreSettings({ ...storeSettings, faqs: newFaqs });
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const newFaqs = [...(storeSettings.faqs || []), { question: '', answer: '' }];
+                        setStoreSettings({ ...storeSettings, faqs: newFaqs });
+                      }}
+                      className="mt-4 text-sm font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors inline-block"
+                    >
+                      + Add FAQ
+                    </button>
                   </div>
                 </div>
               </div>

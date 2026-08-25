@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import PlansKPIs from "@/components/plans/PlansKPIs";
 import PlansGrid from "@/components/plans/PlansGrid";
 import PlanFormModal from "@/components/plans/PlanFormModal";
 import PlanListModal from "@/components/plans/PlanListModal";
+import { fetchWithAuth } from "@/lib/api";
 
 export default function PlansPage() {
   const [modalFilter, setModalFilter] = useState(null);
@@ -13,9 +14,57 @@ export default function PlansPage() {
   const [modalMode, setModalMode] = useState("list");
   const [selectedItem, setSelectedItem] = useState(null);
   
+  const [storeSettings, setStoreSettings] = useState(null);
   const [localItems, setLocalItems] = useState([]);
+  const [products, setProducts] = useState([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [settingsRes, productsRes] = await Promise.all([
+          fetchWithAuth('/settings'),
+          fetchWithAuth('/products')
+        ]);
+        
+        if (settingsRes.success && settingsRes.data) {
+          setStoreSettings(settingsRes.data);
+          const plansWithIds = (settingsRes.data.subscriptionPlans || []).map((p, idx) => ({ ...p, id: idx.toString() }));
+          setLocalItems(plansWithIds);
+        }
+
+        if (productsRes.success && productsRes.data) {
+          // Filter to water category products
+          const waterProducts = productsRes.data.filter(p => p.category?.slug === 'water' || p.categorySlug === 'water');
+          setProducts(waterProducts);
+        }
+      } catch (err) {
+        console.error('Error loading data:', err);
+      }
+    };
+    loadData();
+  }, []);
+
+  const saveSettingsToBackend = async (newPlans) => {
+    try {
+      const updatedSettings = { ...storeSettings, subscriptionPlans: newPlans };
+      const res = await fetch('http://localhost:5000/api/v1/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSettings)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStoreSettings(data.data);
+        const plansWithIds = (data.data.subscriptionPlans || []).map((p, idx) => ({ ...p, id: idx.toString() }));
+        setLocalItems(plansWithIds);
+      }
+    } catch (err) {
+      console.error('Error saving plans:', err);
+      alert('Failed to save plans');
+    }
+  };
   
   const handleAddPlan = () => {
     setItemToEdit(null);
@@ -25,23 +74,29 @@ export default function PlansPage() {
   const handleEditClick = (item) => {
     setItemToEdit(item);
     setIsFormOpen(true);
+    setIsListModalOpen(false);
   };
 
   const handleDeleteClick = (itemId) => {
-    setLocalItems(prev => prev.filter(i => i.id !== itemId));
+    if (!confirm('Are you sure you want to delete this plan?')) return;
+    const newPlans = localItems.filter(i => i.id !== itemId).map(p => {
+      const { id, ...rest } = p;
+      return rest;
+    });
+    saveSettingsToBackend(newPlans);
   };
 
   const handleToggleStatus = (item) => {
-    setLocalItems(prev => prev.map(i => {
+    const newPlans = localItems.map(i => {
       if (i.id === item.id) {
-        if (i.status === "Active") {
-          return { ...i, status: "Inactive", statusColor: "slate" };
-        } else {
-          return { ...i, status: "Active", statusColor: "teal" };
-        }
+        return { ...i, isActive: !i.isActive };
       }
       return i;
-    }));
+    }).map(p => {
+      const { id, ...rest } = p;
+      return rest;
+    });
+    saveSettingsToBackend(newPlans);
   };
 
   const handleCardClick = (item) => {
@@ -51,13 +106,20 @@ export default function PlansPage() {
   };
 
   const handleSaveItem = (savedItem) => {
-    setLocalItems(prev => {
-      const exists = prev.find(i => i.id === savedItem.id);
-      if (exists) {
-        return prev.map(i => i.id === savedItem.id ? savedItem : i);
-      }
-      return [savedItem, ...prev];
+    let newPlans = [...localItems];
+    if (savedItem.id) {
+      newPlans = newPlans.map(i => i.id === savedItem.id ? savedItem : i);
+    } else {
+      newPlans.push(savedItem);
+    }
+    
+    // strip out local 'id' before saving
+    newPlans = newPlans.map(p => {
+      const { id, ...rest } = p;
+      return rest;
     });
+
+    saveSettingsToBackend(newPlans);
   };
 
   return (
@@ -104,6 +166,7 @@ export default function PlansPage() {
         onClose={() => setIsFormOpen(false)}
         itemToEdit={itemToEdit}
         onSave={handleSaveItem}
+        availableProducts={products}
       />
 
       {/* List / Detail Modal */}

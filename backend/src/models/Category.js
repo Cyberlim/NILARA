@@ -18,6 +18,18 @@ const categorySchema = new mongoose.Schema({
     required: true,
     trim: true // Validated image url logic happens in zod/controller
   },
+  bannerTitle: {
+    type: String,
+    trim: true
+  },
+  iconName: {
+    type: String,
+    trim: true
+  },
+  subcategories: [{
+    type: String,
+    trim: true
+  }],
   isActive: {
     type: Boolean,
     default: true

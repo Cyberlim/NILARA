@@ -47,7 +47,7 @@ export default function ProductsPage() {
           sales: 0,
           updatedDate: new Date(p.updatedAt).toLocaleDateString(),
           updatedTime: new Date(p.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          image: p.images[0] || "📦",
+          image: p.images && p.images.length > 0 ? p.images[0] : null,
           images: p.images,
           tags: "",
           description: p.description

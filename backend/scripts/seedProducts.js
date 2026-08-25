@@ -11,10 +11,10 @@ if (!MONGO_URI) {
 }
 
 const rawCategories = [
-  { name: "Water", slug: "water", imageUrl: "assets/images/1L.png", sortOrder: 1 },
-  { name: "Oil", slug: "oil", imageUrl: "assets/images/nilara1lmustardoil.png", sortOrder: 2 },
-  { name: "Dairy", slug: "dairy", imageUrl: "assets/images/milk.png", sortOrder: 3 },
-  { name: "Grocery", slug: "grocery", imageUrl: "assets/images/bread.png", sortOrder: 4 }
+  { name: "Water", slug: "water", imageUrl: "assets/images/1L.png", sortOrder: 1, bannerTitle: "Nilara Pure Water", iconName: "water_drop_outlined", subcategories: ["250 ml", "500 ml", "1 Litre", "2 Litre", "5 L Jar", "20 L Can"] },
+  { name: "Oil", slug: "oil", imageUrl: "assets/images/nilara1lmustardoil.png", sortOrder: 2, bannerTitle: "Nilara Cooking Oils", iconName: "opacity_outlined", subcategories: ["Mustard Oil 1L", "Sunflower Oil 1L", "Mustard Oil 5L", "Groundnut Oil 5L"] },
+  { name: "Dairy", slug: "dairy", imageUrl: "assets/images/milk.png", sortOrder: 3, bannerTitle: "Fresh Dairy Every Day", iconName: "egg_alt_outlined", subcategories: ["Fresh Milk", "Paneer & Curd", "Butter & Spread", "Cheese"] },
+  { name: "Grocery", slug: "grocery", imageUrl: "assets/images/bread.png", sortOrder: 4, bannerTitle: "Daily Essentials", iconName: "shopping_basket_outlined", subcategories: ["Basmati Rice", "Chakki Atta", "Dals & Pulses", "Sugar & Salt"] }
 ];
 
 const rawProducts = [
@@ -62,6 +62,36 @@ const rawProducts = [
       stockQuantity: 300,
       unit: "l",
       weightOrVolume: 1
+    }]
+  },
+  {
+    name: "Nilara 10L Water Jar",
+    slug: "nilara-10l-water-jar",
+    categorySlug: "water",
+    description: "Ideal for small families.",
+    images: ["assets/images/1L.png"],
+    variants: [{
+      sku: "NIL-10L",
+      pricePaise: 6000,
+      discountPricePaise: 5500,
+      stockQuantity: 200,
+      unit: "l",
+      weightOrVolume: 10
+    }]
+  },
+  {
+    name: "Nilara 20L Water Jar",
+    slug: "nilara-20l-water-jar",
+    categorySlug: "water",
+    description: "Standard 20L tap jar for regular use.",
+    images: ["assets/images/1L.png"],
+    variants: [{
+      sku: "NIL-20L",
+      pricePaise: 9000,
+      discountPricePaise: 8000,
+      stockQuantity: 150,
+      unit: "l",
+      weightOrVolume: 20
     }]
   },
   

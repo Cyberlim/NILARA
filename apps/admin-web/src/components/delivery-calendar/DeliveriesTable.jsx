@@ -7,15 +7,19 @@ import {
 
 const PAGE_SIZE = 10;
 
-export default function DeliveriesTable({ localItems, onRowClick }) {
+export default function DeliveriesTable({ localItems, onRowClick, timeSlots = [] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [dateFilter, setDateFilter] = useState("Today");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [timeFilter, setTimeFilter] = useState("All");
+
+  const uniqueTimeSlots = ["All", ...timeSlots];
 
   const filtered = localItems.filter(item => {
     if (dateFilter !== "All" && item.date !== dateFilter) return false;
     if (statusFilter !== "All" && item.status !== statusFilter) return false;
+    if (timeFilter !== "All" && item.timeWindow !== timeFilter) return false;
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -66,6 +70,16 @@ export default function DeliveriesTable({ localItems, onRowClick }) {
             <option value="Completed">Completed</option>
             <option value="Exception">Exception</option>
             <option value="Scheduled">Scheduled</option>
+          </select>
+          
+          <select 
+            value={timeFilter}
+            onChange={(e) => { setTimeFilter(e.target.value); setCurrentPage(1); }}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all cursor-pointer"
+          >
+            {uniqueTimeSlots.map(slot => (
+              <option key={slot} value={slot}>{slot === "All" ? "All Time Slots" : slot}</option>
+            ))}
           </select>
         </div>
       </div>

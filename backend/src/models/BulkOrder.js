@@ -61,6 +61,10 @@ const bulkOrderSchema = new mongoose.Schema({
   advancePaid: {
     type: Boolean,
     default: false
+  },
+  customDesign: {
+    type: Object,
+    required: false
   }
 }, { timestamps: true });
 

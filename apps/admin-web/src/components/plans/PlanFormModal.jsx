@@ -3,14 +3,17 @@
 import { useState, useEffect } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
 
-export default function PlanFormModal({ isOpen, onClose, itemToEdit, onSave }) {
+export default function PlanFormModal({ isOpen, onClose, itemToEdit, onSave, availableProducts = [] }) {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    price: 0,
+    price: "",
     frequency: "Daily",
-    status: "Active",
-    features: [""]
+    discountPercentage: "",
+    durationMonths: 1,
+    isActive: true,
+    includedProducts: [],
+    features: []
   });
 
   useEffect(() => {
@@ -18,21 +21,27 @@ export default function PlanFormModal({ isOpen, onClose, itemToEdit, onSave }) {
       document.body.style.overflow = 'hidden';
       if (itemToEdit) {
         setFormData({
-          name: itemToEdit.name,
-          description: itemToEdit.description,
-          price: itemToEdit.price,
-          frequency: itemToEdit.frequency,
-          status: itemToEdit.status,
-          features: [...itemToEdit.features],
+          name: itemToEdit.name || "",
+          description: itemToEdit.description || "",
+          price: itemToEdit.price !== undefined ? itemToEdit.price : "",
+          frequency: itemToEdit.frequency || "Daily",
+          discountPercentage: itemToEdit.discountPercentage !== undefined ? itemToEdit.discountPercentage : "",
+          durationMonths: itemToEdit.durationMonths !== undefined ? itemToEdit.durationMonths : 1,
+          isActive: itemToEdit.isActive !== false,
+          includedProducts: itemToEdit.includedProducts || [],
+          features: itemToEdit.features || []
         });
       } else {
         setFormData({
           name: "",
           description: "",
-          price: 0,
+          price: "",
           frequency: "Daily",
-          status: "Active",
-          features: [""]
+          discountPercentage: "",
+          durationMonths: 1,
+          isActive: true,
+          includedProducts: [],
+          features: []
         });
       }
     } else {
@@ -43,33 +52,28 @@ export default function PlanFormModal({ isOpen, onClose, itemToEdit, onSave }) {
 
   if (!isOpen) return null;
 
-  const handleFeatureChange = (index, value) => {
-    const newFeatures = [...formData.features];
-    newFeatures[index] = value;
-    setFormData({ ...formData, features: newFeatures });
-  };
-
-  const addFeature = () => {
-    setFormData({ ...formData, features: [...formData.features, ""] });
-  };
-
-  const removeFeature = (index) => {
-    if (formData.features.length > 1) {
-      const newFeatures = formData.features.filter((_, i) => i !== index);
-      setFormData({ ...formData, features: newFeatures });
-    }
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (formData.includedProducts.length === 0) {
+      alert("Please select at least one product to include in this plan.");
+      return;
+    }
     onSave && onSave({
       ...formData,
-      id: itemToEdit ? itemToEdit.id : `PLN-${Math.floor(Math.random() * 1000)}`,
-      subscribers: itemToEdit ? itemToEdit.subscribers : 0,
-      statusColor: formData.status === "Active" ? "green" : formData.status === "Archived" ? "slate" : "blue",
-      features: formData.features.filter(f => f.trim() !== "")
+      id: itemToEdit ? itemToEdit.id : undefined,
     });
     onClose();
+  };
+
+  const toggleProduct = (productName) => {
+    setFormData(prev => {
+      const current = prev.includedProducts || [];
+      if (current.includes(productName)) {
+        return { ...prev, includedProducts: current.filter(n => n !== productName) };
+      } else {
+        return { ...prev, includedProducts: [...current, productName] };
+      }
+    });
   };
 
   return (
@@ -99,63 +103,100 @@ export default function PlanFormModal({ isOpen, onClose, itemToEdit, onSave }) {
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">Description</label>
                 <textarea rows={2} required value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all resize-none" placeholder="Short description of the plan" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Price / Delivery (₹)</label>
-                  <input type="number" required min="0" value={formData.price} onChange={(e) => setFormData({...formData, price: parseInt(e.target.value) || 0})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" />
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Price / Month (₹)</label>
+                  <input type="number" required min="0" placeholder="0" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value === '' ? '' : parseInt(e.target.value)})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Discount Percentage (%)</label>
+                  <input type="number" required min="0" max="100" placeholder="0" value={formData.discountPercentage} onChange={(e) => setFormData({...formData, discountPercentage: e.target.value === '' ? '' : parseInt(e.target.value)})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Duration (Months)</label>
+                  <input type="number" required min="1" placeholder="1" value={formData.durationMonths} onChange={(e) => setFormData({...formData, durationMonths: e.target.value === '' ? '' : parseInt(e.target.value)})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">Frequency</label>
                   <select value={formData.frequency} onChange={(e) => setFormData({...formData, frequency: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all appearance-none cursor-pointer">
                     <option value="Daily">Daily</option>
+                    <option value="Alternate Days">Alternate Days</option>
                     <option value="Weekly">Weekly</option>
                     <option value="Monthly">Monthly</option>
-                    <option value="Custom">Custom</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Status</label>
-                  <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all appearance-none cursor-pointer">
-                    <option value="Active">Active</option>
-                    <option value="New">New</option>
-                    <option value="Archived">Archived</option>
                   </select>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-2 mt-6">
-                <h3 className="text-sm font-bold text-slate-800">Features List</h3>
-                <button type="button" onClick={addFeature} className="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center">
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Feature
-                </button>
-              </div>
-              
-              <div className="space-y-3">
-                {formData.features.map((feature, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
+            <div className="space-y-4 mt-6">
+              <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Included Products</h3>
+              {availableProducts.length === 0 ? (
+                <p className="text-sm text-slate-500 italic">No water products available.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {availableProducts.map(product => {
+                    const isChecked = (formData.includedProducts || []).includes(product.name);
+                    return (
+                      <label key={product._id || product.id} className={`flex items-start p-3 border rounded-xl cursor-pointer transition-colors ${isChecked ? 'border-teal-500 bg-teal-50/50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                        <input 
+                          type="checkbox"
+                          className="mt-1 w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500"
+                          checked={isChecked}
+                          onChange={() => toggleProduct(product.name)}
+                        />
+                        <div className="ml-3 flex-1">
+                          <p className="text-sm font-bold text-slate-800">{product.name}</p>
+                          {product.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{product.description}</p>}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4 mt-6">
+              <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Plan Features (Benefits)</h3>
+              <div className="space-y-2">
+                {(formData.features || []).map((feature, index) => (
+                  <div key={index} className="flex gap-2">
                     <input 
                       type="text" 
-                      value={feature} 
-                      onChange={(e) => handleFeatureChange(idx, e.target.value)} 
-                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
-                      placeholder={`Feature ${idx + 1}`} 
                       required
+                      value={feature} 
+                      onChange={(e) => {
+                        const newFeatures = [...formData.features];
+                        newFeatures[index] = e.target.value;
+                        setFormData({...formData, features: newFeatures});
+                      }}
+                      className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
+                      placeholder="e.g. Free Delivery" 
                     />
-                    {formData.features.length > 1 && (
-                      <button type="button" onClick={() => removeFeature(idx)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-500 transition-colors shrink-0">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const newFeatures = formData.features.filter((_, i) => i !== index);
+                        setFormData({...formData, features: newFeatures});
+                      }}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
                 ))}
+                <button 
+                  type="button" 
+                  onClick={() => setFormData({...formData, features: [...(formData.features || []), ""]})}
+                  className="flex items-center gap-2 text-sm font-bold text-teal-600 hover:text-teal-700 py-2"
+                >
+                  <Plus className="w-4 h-4" /> Add Feature
+                </button>
               </div>
             </div>
 
           </div>
           
-          <div className="px-6 py-4 border-t border-slate-200/60 bg-white/50 flex justify-end gap-3">
+          <div className="px-6 py-4 border-t border-slate-200/60 bg-white/50 flex justify-end gap-3 mt-6">
             <button type="button" onClick={onClose} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors">
               Cancel
             </button>

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Download, Calendar as CalendarIcon } from "lucide-react";
 import CalendarKPIs from "@/components/delivery-calendar/CalendarKPIs";
 import DeliveriesTable from "@/components/delivery-calendar/DeliveriesTable";
 import DeliveryDetailModal from "@/components/delivery-calendar/DeliveryDetailModal";
 import FullCalendarModal from "@/components/delivery-calendar/FullCalendarModal";
+import { fetchWithAuth } from "@/lib/api";
 
 export default function DeliveryCalendarPage() {
   const [modalFilter, setModalFilter] = useState(null);
@@ -13,12 +14,39 @@ export default function DeliveryCalendarPage() {
   const [modalMode, setModalMode] = useState("detail");
   const [selectedItem, setSelectedItem] = useState(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [deliveries, setDeliveries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [timeSlots, setTimeSlots] = useState([]);
+
+  useEffect(() => {
+    async function fetchDeliveries() {
+      try {
+        setLoading(true);
+        const [delRes, setRes] = await Promise.all([
+          fetchWithAuth("/admin/delivery-schedule?date=All"),
+          fetch("http://localhost:5000/api/v1/settings").then(res => res.json())
+        ]);
+
+        if (delRes.success) {
+          setDeliveries(delRes.data);
+        }
+        
+        if (setRes.success && setRes.data?.deliveryTimeSlots) {
+          setTimeSlots(setRes.data.deliveryTimeSlots);
+        }
+      } catch (err) {
+        console.error("Failed to load delivery schedule or settings", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDeliveries();
+  }, []);
 
   const handleExport = () => {
-    // Generate simple CSV
-    const headers = ["ID,Date,Time Window,Customer,Phone,Address,Items,Driver,Route,Status"];
-    const rows = [].map(item => 
-      `${item.id},"${item.date}","${item.timeWindow}","${item.customerName}","${item.phone}","${item.address}","${item.items}","${item.driver}","${item.route}","${item.status}"`
+    const headers = ["ID,Date,Time Window,Customer,Phone,Address,Items,Driver,Route,Status,Type"];
+    const rows = deliveries.map(item => 
+      `${item.id},"${item.date}","${item.timeWindow}","${item.customerName}","${item.phone}","${item.address}","${item.items}","${item.driver}","${item.route}","${item.status}","${item.type}"`
     );
     const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows).join("\n");
     
@@ -73,10 +101,18 @@ export default function DeliveryCalendarPage() {
       />
 
       {/* Table */}
-      <DeliveriesTable 
-        localItems={[]}
-        onRowClick={handleRowClick} 
-      />
+      {loading ? (
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col mb-6 p-16 items-center justify-center">
+          <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-slate-500 font-medium">Loading delivery schedule...</p>
+        </div>
+      ) : (
+        <DeliveriesTable 
+          localItems={modalFilter ? deliveries.filter(d => d.status === modalFilter) : deliveries}
+          onRowClick={handleRowClick} 
+          timeSlots={timeSlots}
+        />
+      )}
 
       {/* List / Detail Modal */}
       <DeliveryDetailModal

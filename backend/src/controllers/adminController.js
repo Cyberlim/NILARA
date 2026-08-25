@@ -1,7 +1,10 @@
 const express = require('express');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const BulkOrder = require('../models/BulkOrder');
+const Subscription = require('../models/Subscription');
 const { recordAudit } = require('../models/AuditLog');
+const { messaging } = require('../config/firebase');
 
 const getAllOrders = async (req, res, next) => {
   try {
@@ -72,6 +75,29 @@ const updateOrderStatus = async (req, res, next) => {
     // Trigger Socket.IO event
     req.app.get('io').to(`user_${order.user}`).emit('order_status_updated', { orderId: order._id, status });
     req.app.get('io').to(`admin_room`).emit('order_status_updated', { orderId: order._id, status });
+    
+    // Send FCM Push Notification
+    if (messaging) {
+      const user = await require('../models/User').findById(order.user).lean();
+      if (user && user.fcmTokens && user.fcmTokens.length > 0) {
+        const message = {
+          notification: {
+            title: 'Order Status Update',
+            body: `Your order #${order.orderNumber} is now ${status.toUpperCase()}`
+          },
+          data: {
+            orderId: order._id.toString(),
+            status: status
+          },
+          tokens: user.fcmTokens
+        };
+        try {
+          await messaging.sendEachForMulticast(message);
+        } catch (fcmErr) {
+          console.error('Failed to send FCM notification:', fcmErr);
+        }
+      }
+    }
     
     res.status(200).json({
       success: true,
@@ -158,8 +184,10 @@ const getDashboardStats = async (req, res, next) => {
       ordersTrend = 100;
     }
 
-    // KPI: Low Stock
     const lowStockProductsCount = await Product.countDocuments({ stock: { $lt: 10 } });
+    
+    // KPI: Active Subscriptions
+    const activeSubscriptionsCount = await Subscription.countDocuments({ status: 'Active' });
 
     // Recent Orders
     const recentOrders = await Order.find()
@@ -207,7 +235,7 @@ const getDashboardStats = async (req, res, next) => {
           revenueTrend: revenueTrend.toFixed(1),
           todayOrders: todaysOrders.length,
           ordersTrend: ordersTrend.toFixed(1),
-          activeSubscriptions: 0,
+          activeSubscriptions: activeSubscriptionsCount,
           subscriptionsTrend: 0,
           activeDeliveries: 0,
           deliveriesTrend: 0,
@@ -272,7 +300,7 @@ const getPayments = async (req, res, next) => {
       .populate('user', 'displayName email phone')
       .lean();
 
-    const items = orders.map(o => ({
+    const orderItems = orders.map(o => ({
       id: o._id,
       orderNumber: o.orderNumber,
       customer: o.user?.displayName || 'Guest',
@@ -282,11 +310,32 @@ const getPayments = async (req, res, next) => {
       status: o.paymentStatus,
       statusColor: o.paymentStatus === 'paid' ? 'green' : o.paymentStatus === 'failed' ? 'red' : 'amber',
       date: o.createdAt,
+      type: 'regular'
     }));
 
-    const totalRevenue = orders
-      .filter(o => o.paymentStatus === 'paid')
-      .reduce((s, o) => s + o.totalPaise / 100, 0);
+    const bulkOrders = await BulkOrder.find()
+      .sort({ createdAt: -1 })
+      .populate('user', 'displayName email phone')
+      .lean();
+
+    const bulkItems = bulkOrders.map(b => ({
+      id: b._id,
+      orderNumber: 'BLK-' + b._id.toString().substring(18).toUpperCase(),
+      customer: b.user?.displayName || 'Guest (Bulk)',
+      phone: b.user?.phone || '',
+      amount: b.advancePaid ? (b.advancePayment || b.totalPrice) : b.totalPrice,
+      method: b.paymentMethod?.toUpperCase() || 'UPI',
+      status: b.advancePaid ? 'paid' : 'pending',
+      statusColor: b.advancePaid ? 'green' : 'amber',
+      date: b.createdAt,
+      type: 'bulk'
+    }));
+
+    const items = [...orderItems, ...bulkItems].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const totalRevenue = items
+      .filter(i => i.status === 'paid')
+      .reduce((s, i) => s + i.amount, 0);
     const pending = items.filter(i => i.status === 'pending').length;
     const paid = items.filter(i => i.status === 'paid').length;
     const failed = items.filter(i => i.status === 'failed').length;
@@ -298,6 +347,197 @@ const getPayments = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const getDeliverySchedule = async (req, res, next) => {
+  try {
+    const { date } = req.query; // 'Today', 'Tomorrow', 'All', or specific date.
+    
+    // Determine the date range to look for based on input
+    const targetDates = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date === 'Today') {
+      targetDates.push({ label: 'Today', date: today });
+    } else if (date === 'Tomorrow') {
+      targetDates.push({ label: 'Tomorrow', date: tomorrow });
+    } else {
+      // Default to "All" (Today + Tomorrow for now to keep list manageable)
+      targetDates.push({ label: 'Today', date: today });
+      targetDates.push({ label: 'Tomorrow', date: tomorrow });
+    }
+
+    // 1. Fetch Active/Pending Subscriptions
+    const subscriptions = await Subscription.find({ status: { $in: ['Active', 'Pending'] } })
+      .populate('user', 'displayName phone email')
+      .lean();
+
+    const subscriptionDeliveries = [];
+
+    subscriptions.forEach(sub => {
+      const start = new Date(sub.startDate);
+      start.setHours(0, 0, 0, 0);
+
+      targetDates.forEach(target => {
+        const tDate = target.date;
+        
+        // Subscription hasn't started yet
+        if (start > tDate) return;
+
+        let isDue = false;
+        const diffTime = Math.abs(tDate - start);
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+        switch (sub.frequency) {
+          case 'Daily':
+            isDue = true;
+            break;
+          case 'Alternate':
+          case 'Alternate Days':
+            isDue = diffDays % 2 === 0;
+            break;
+          case 'Weekly':
+            isDue = start.getDay() === tDate.getDay();
+            break;
+          case 'Monthly':
+            isDue = start.getDate() === tDate.getDate();
+            break;
+        }
+
+        let isSkipped = false;
+        if (sub.skippedDeliveries && sub.skippedDeliveries.length > 0) {
+          isSkipped = sub.skippedDeliveries.some(skippedDate => {
+            const sd = new Date(skippedDate);
+            sd.setHours(0, 0, 0, 0);
+            return sd.getTime() === tDate.getTime();
+          });
+        }
+
+        if (isDue && !isSkipped) {
+          subscriptionDeliveries.push({
+            id: `sub_${sub._id}_${target.label}`,
+            date: target.label,
+            timeWindow: sub.deliveryTime || 'Standard',
+            customerName: sub.user?.displayName || 'Unknown Customer',
+            phone: sub.user?.phone || 'N/A',
+            address: sub.address ? `${sub.address.apartment ? sub.address.apartment + ', ' : ''}${sub.address.street || ''}` : 'N/A',
+            items: `${sub.quantity}x ${sub.productName}`,
+            driver: 'Unassigned',
+            route: sub.planName || 'Subscription',
+            status: 'Scheduled',
+            statusColor: 'teal',
+            type: 'Subscription',
+            instructions: sub.specialInstructions || '',
+            paymentMethod: sub.paymentMethod || 'N/A',
+            leaveAtDoor: sub.leaveAtDoor || false,
+            callBeforeDelivery: sub.callBeforeDelivery || false,
+          });
+        }
+      });
+    });
+
+    // 2. Fetch Pending/Confirmed Regular Orders
+    const orders = await Order.find({ status: { $in: ['pending', 'confirmed', 'out_for_delivery'] } })
+      .populate('user', 'displayName phone email')
+      .lean();
+
+    const orderDeliveries = [];
+    orders.forEach(order => {
+      const orderDate = new Date(order.createdAt);
+      orderDate.setHours(0, 0, 0, 0);
+
+      targetDates.forEach(target => {
+        const tDate = target.date;
+        // For simplicity, assume all pending orders created <= target date are due on target date
+        if (orderDate.getTime() <= tDate.getTime()) {
+          const address = order.deliveryAddressSnapshot || order.deliveryAddress;
+          orderDeliveries.push({
+            id: `ord_${order._id}_${target.label}`,
+            date: target.label,
+            timeWindow: order.deliveryTimePref || 'Standard (Anytime)',
+            customerName: order.user?.displayName || 'Guest',
+            phone: order.user?.phone || 'N/A',
+            address: address ? `${address.addressLine1 || ''} ${address.addressLine2 || ''}, ${address.city || ''}`.trim().replace(/^, |, $/g, '') : 'N/A',
+            items: `${order.items?.length || 0} items`,
+            driver: 'Unassigned',
+            route: 'Standard Order',
+            status: order.status === 'out_for_delivery' ? 'Dispatched' : 'Pending',
+            statusColor: order.status === 'out_for_delivery' ? 'blue' : 'amber',
+            type: 'Order',
+            instructions: order.customerNotes || '',
+            paymentMethod: order.paymentMethod || 'N/A',
+            leaveAtDoor: false,
+            callBeforeDelivery: false,
+          });
+        }
+      });
+    });
+
+    // Merge and sort (Today first, Tomorrow second)
+    let allDeliveries = [...subscriptionDeliveries, ...orderDeliveries];
+    allDeliveries.sort((a, b) => a.date === 'Today' ? -1 : 1);
+
+    res.json({
+      success: true,
+      data: allDeliveries
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const markDeliveryDelivered = async (req, res, next) => {
+  try {
+    const { deliveryId, deliveryDate } = req.body;
+    
+    if (deliveryId && deliveryId.startsWith('sub_')) {
+      const parts = deliveryId.split('_');
+      const subId = parts[1];
+      
+      const sub = await Subscription.findById(subId);
+      if (sub) {
+        const dateObj = deliveryDate ? new Date(deliveryDate) : new Date();
+        dateObj.setHours(0,0,0,0);
+        
+        // Prevent duplicate marking
+        const alreadyMarked = sub.completedDeliveries && sub.completedDeliveries.some(d => {
+          const sd = new Date(d);
+          sd.setHours(0,0,0,0);
+          return sd.getTime() === dateObj.getTime();
+        });
+
+        if (!alreadyMarked) {
+          sub.completedDeliveries = sub.completedDeliveries || [];
+          sub.completedDeliveries.push(dateObj);
+          await sub.save();
+        }
+        
+        return res.json({ success: true, message: 'Subscription delivery marked as delivered' });
+      } else {
+        return res.status(404).json({ success: false, message: 'Subscription not found' });
+      }
+    } else if (deliveryId && deliveryId.startsWith('ord_')) {
+      const parts = deliveryId.split('_');
+      const orderId = parts[1];
+      
+      const order = await Order.findById(orderId);
+      if (order) {
+        order.status = 'delivered';
+        await order.save();
+        return res.json({ success: true, message: 'Order marked as delivered' });
+      } else {
+        return res.status(404).json({ success: false, message: 'Order not found' });
+      }
+    }
+    
+    return res.status(400).json({ success: false, message: 'Invalid delivery ID' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getAllOrders,
@@ -305,5 +545,7 @@ module.exports = {
   getAllCustomers,
   toggleCustomerSuspension,
   getInventory,
-  getPayments
+  getPayments,
+  getDeliverySchedule,
+  markDeliveryDelivered
 };

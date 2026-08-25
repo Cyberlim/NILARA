@@ -22,6 +22,7 @@ const deliveryRoutes = require('./routes/deliveryRoutes');
 const bulkOrderRoutes = require('./routes/bulkOrderRoutes');
 const marketingRoutes = require('./routes/marketingRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
 
 const app = express();
 const httpServer = createServer(app);
@@ -107,6 +108,7 @@ app.use('/api/v1/delivery', deliveryRoutes);
 app.use('/api/v1/bulk-orders', bulkOrderRoutes);
 app.use('/api/v1/marketing', marketingRoutes);
 app.use('/api/v1/settings', settingsRoutes);
+app.use('/api/v1/subscriptions', subscriptionRoutes);
 
 // Health check (no auth required)
 app.get('/health', (req, res) => {

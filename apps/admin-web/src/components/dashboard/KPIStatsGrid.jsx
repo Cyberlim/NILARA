@@ -9,7 +9,7 @@ export default function KPIStatsGrid({ kpiData }) {
     {
       id: "revenue",
       title: "Today's Revenue",
-      value: "?" + kpiData.todayRevenue.toLocaleString(),
+      value: "" + kpiData.todayRevenue.toLocaleString(),
       trend: (kpiData.revenueTrend >= 0 ? "+ " : "- ") + Math.abs(kpiData.revenueTrend) + "%",
       trendUp: kpiData.revenueTrend >= 0,
       comparison: "vs yesterday",
@@ -28,7 +28,7 @@ export default function KPIStatsGrid({ kpiData }) {
     },
     {
       id: "subscriptions",
-      title: "Active Subscriptions",
+      title: "Active Subscribers",
       value: kpiData.activeSubscriptions.toString(),
       trend: "? 0%",
       trendUp: true,

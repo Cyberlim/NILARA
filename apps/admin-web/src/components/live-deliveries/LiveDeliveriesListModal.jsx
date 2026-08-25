@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Search, ChevronRight, Bike, MapPin, User, ArrowLeft, Navigation } from "lucide-react";
+import { X, Search, ChevronRight, Bike, MapPin, User, ArrowLeft, Navigation, CheckCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import CustomerProfileModal from "@/components/customers/CustomerProfileModal";
 import DeliveryPartnerProfileModal from "@/components/delivery-partners/DeliveryPartnerProfileModal";
@@ -11,6 +11,36 @@ export default function LiveDeliveriesListModal({ isOpen, onClose, filterType, s
   const [customerToView, setCustomerToView] = useState(null);
   const [partnerModalOpen, setPartnerModalOpen] = useState(false);
   const [partnerToView, setPartnerToView] = useState(null);
+  const [isMarking, setIsMarking] = useState(false);
+
+  const handleMarkDelivered = async (item) => {
+    setIsMarking(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/v1/admin/live-deliveries/mark-delivered", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("adminToken")}`
+        },
+        body: JSON.stringify({
+          deliveryId: item.id,
+          deliveryDate: item.date === "Today" ? new Date().toISOString() : new Date(Date.now() + 86400000).toISOString()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Marked as delivered successfully");
+        onClose();
+        window.location.reload(); // Refresh the page to update the schedule
+      } else {
+        alert(data.message || "Failed to mark as delivered");
+      }
+    } catch (err) {
+      alert("Error marking delivered");
+    } finally {
+      setIsMarking(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -112,13 +142,21 @@ export default function LiveDeliveriesListModal({ isOpen, onClose, filterType, s
             </div>
           </div>
           
-          <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+          <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3 flex-wrap">
             <button onClick={onClose} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors shadow-sm">
               Close
             </button>
-            <button className="px-6 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition-colors shadow-sm flex items-center">
+            <button className="px-6 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors shadow-sm flex items-center">
               <Navigation className="w-4 h-4 mr-2" />
               Live Map
+            </button>
+            <button 
+              onClick={() => handleMarkDelivered(item)}
+              disabled={isMarking}
+              className="px-6 py-2.5 bg-teal-600 text-white rounded-xl text-sm font-bold hover:bg-teal-700 transition-colors shadow-sm flex items-center disabled:opacity-70"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              {isMarking ? "Marking..." : "Mark Delivered"}
             </button>
           </div>
         </div>

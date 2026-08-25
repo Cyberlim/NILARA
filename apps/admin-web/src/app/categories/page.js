@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import CategoriesKPI from "@/components/categories/CategoriesKPI";
 import CategoriesTable from "@/components/categories/CategoriesTable";
@@ -18,6 +18,39 @@ export default function CategoriesPage() {
   
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [categoryToEdit, setCategoryToEdit] = useState(null);
+
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchCategories = async () => {
+    try {
+      setIsLoading(true);
+      const { fetchWithAuth } = await import('@/lib/api');
+      const res = await fetchWithAuth('/categories');
+      
+      const mapped = res.data.map(c => ({
+        id: c._id,
+        name: c.name,
+        description: c.bannerTitle || "No description",
+        status: c.isActive ? "Active" : "Inactive",
+        products: 0, // Mock for now, could be fetched
+        inventory: 0,
+        subcategories: c.subcategories || [],
+        iconName: c.iconName || "",
+        updatedDate: new Date(c.updatedAt).toLocaleDateString(),
+        image: c.imageUrl
+      }));
+      setCategories(mapped);
+    } catch (err) {
+      console.error("Failed to fetch categories:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   const handleRowClick = (category) => {
     setSelectedCategory(category);
@@ -65,6 +98,7 @@ export default function CategoriesPage() {
 
       {/* KPI Cards */}
       <CategoriesKPI
+        categories={categories}
         modalFilter={modalFilter}
         setModalFilter={setModalFilter}
         setIsModalOpen={setIsModalOpen}
@@ -72,6 +106,7 @@ export default function CategoriesPage() {
 
       {/* Main Table */}
       <CategoriesTable
+        categories={categories}
         onRowClick={handleRowClick}
         onEditClick={handleEditClick}
       />
@@ -100,6 +135,7 @@ export default function CategoriesPage() {
         isOpen={isFormModalOpen}
         onClose={() => setIsFormModalOpen(false)}
         categoryToEdit={categoryToEdit}
+        onSuccess={fetchCategories}
       />
 
     </div>

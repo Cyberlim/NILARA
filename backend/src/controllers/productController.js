@@ -26,7 +26,7 @@ const createProduct = async (req, res, next) => {
       category,
       images,
       variants,
-      isActive: true
+      isActive: req.body.isActive !== undefined ? req.body.isActive : true
     });
 
     await recordAudit({

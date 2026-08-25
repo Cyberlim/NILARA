@@ -3,25 +3,35 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Upload, Save } from "lucide-react";
 
-export default function CategoryFormModal({ isOpen, onClose, categoryToEdit }) {
+import { fetchWithAuth } from "@/lib/api";
+
+export default function CategoryFormModal({ isOpen, onClose, categoryToEdit, onSuccess }) {
   const isEditing = !!categoryToEdit;
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    iconName: "",
+    subcategories: "",
     status: "Active",
     image: null,
   });
+  
+  const [newFile, setNewFile] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      setNewFile(null);
       if (categoryToEdit) {
         setFormData({
           name: categoryToEdit.name || "",
           description: categoryToEdit.description || "",
+          iconName: categoryToEdit.iconName || "",
+          subcategories: Array.isArray(categoryToEdit.subcategories) ? categoryToEdit.subcategories.join(", ") : "",
           status: categoryToEdit.status || "Active",
           image: categoryToEdit.image || null,
         });
@@ -29,6 +39,8 @@ export default function CategoryFormModal({ isOpen, onClose, categoryToEdit }) {
         setFormData({
           name: "",
           description: "",
+          iconName: "",
+          subcategories: "",
           status: "Active",
           image: null,
         });
@@ -48,10 +60,7 @@ export default function CategoryFormModal({ isOpen, onClose, categoryToEdit }) {
   
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      // Create a fake object URL for preview or just store the file
-      // Since existing data uses emojis as images, we'll just set it to a placeholder emoji for demo
-      // In a real app, you'd use URL.createObjectURL(e.target.files[0])
-      setFormData(p => ({ ...p, image: "🖼️" }));
+      setNewFile(e.target.files[0]);
     }
   };
 
@@ -61,11 +70,58 @@ export default function CategoryFormModal({ isOpen, onClose, categoryToEdit }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Simulate save
-    console.log("Saving category:", formData);
-    onClose();
+    setIsSaving(true);
+    
+    try {
+      let finalImageUrl = formData.image;
+      
+      if (newFile) {
+        const uploadData = new FormData();
+        uploadData.append('images', newFile);
+        
+        const uploadRes = await fetchWithAuth('/uploads/images', {
+          method: 'POST',
+          body: uploadData
+        });
+        
+        if (uploadRes.data && uploadRes.data.length > 0) {
+          finalImageUrl = uploadRes.data[0];
+        }
+      }
+
+      const payload = {
+        name: formData.name,
+        bannerTitle: formData.description,
+        iconName: formData.iconName,
+        subcategories: formData.subcategories.split(",").map(s => s.trim()).filter(s => s),
+        isActive: formData.status === "Active",
+        imageUrl: finalImageUrl || ""
+      };
+
+      if (isEditing) {
+        await fetchWithAuth(`/categories/${categoryToEdit.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        await fetchWithAuth('/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err) {
+      console.error("Failed to save category:", err);
+      alert("Failed to save category. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -114,8 +170,8 @@ export default function CategoryFormModal({ isOpen, onClose, categoryToEdit }) {
                 onClick={handleUploadClick}
                 className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center flex-shrink-0 group hover:border-teal-400 transition-colors cursor-pointer relative overflow-hidden"
               >
-                {formData.image ? (
-                  <span className="text-5xl">{formData.image}</span>
+                {newFile || formData.image ? (
+                  <img src={newFile ? URL.createObjectURL(newFile) : formData.image} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
                   <Upload className="w-6 h-6 text-slate-400 group-hover:text-teal-500 transition-colors" />
                 )}
@@ -124,14 +180,14 @@ export default function CategoryFormModal({ isOpen, onClose, categoryToEdit }) {
                 </div>
               </div>
               <div className="flex-1">
-                <h4 className="text-sm font-bold text-slate-800 mb-1">Category Icon / Image</h4>
-                <p className="text-xs text-slate-500 mb-3">Upload a square image (1:1) or pick an emoji icon. Max size 2MB.</p>
+                <h4 className="text-sm font-bold text-slate-800 mb-1">Category Image</h4>
+                <p className="text-xs text-slate-500 mb-3">Upload a square image (1:1). Max size 2MB.</p>
                 <button 
                   type="button" 
                   onClick={handleUploadClick}
                   className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
                 >
-                  Choose Icon
+                  Choose Image
                 </button>
               </div>
             </div>
@@ -141,14 +197,24 @@ export default function CategoryFormModal({ isOpen, onClose, categoryToEdit }) {
               <h4 className="text-sm font-bold text-slate-800 border-b border-slate-50 pb-2 mb-4">Basic Information</h4>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="col-span-1 sm:col-span-2">
+                <div className="col-span-1 sm:col-span-1">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">Category Name *</label>
                   <input required name="name" value={formData.name} onChange={handleChange} type="text" placeholder="e.g. Water Jars" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium text-slate-800" />
                 </div>
                 
+                <div className="col-span-1 sm:col-span-1">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">Icon Name (Optional)</label>
+                  <input name="iconName" value={formData.iconName} onChange={handleChange} type="text" placeholder="e.g. water_drop_outlined" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium text-slate-800" />
+                </div>
+
                 <div className="col-span-1 sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">Description</label>
-                  <textarea name="description" value={formData.description} onChange={handleChange} placeholder="Brief description of the category" rows={3} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium text-slate-800 resize-none"></textarea>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">Banner Title / Description</label>
+                  <input name="description" value={formData.description} onChange={handleChange} placeholder="Brief description of the category" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium text-slate-800" />
+                </div>
+
+                <div className="col-span-1 sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">Subcategories (Comma separated)</label>
+                  <input name="subcategories" value={formData.subcategories} onChange={handleChange} placeholder="e.g. 250 ml, 500 ml, 1 Litre" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium text-slate-800" />
                 </div>
 
                 <div className="col-span-1 sm:col-span-2">

@@ -5,7 +5,7 @@ import { Pencil, Trash2, CheckCircle2 } from "lucide-react";
 export default function PlansGrid({ localItems, onEditClick, onDeleteClick, filterType, onToggleStatus, onCardClick }) {
   
   const filtered = localItems.filter(item => {
-    if (filterType === "active_plans") return item.status === "Active";
+    if (filterType === "active_plans") return item.isActive;
     if (filterType === "most_popular") return item.subscribers > 100;
     return true;
   });
@@ -33,12 +33,12 @@ export default function PlansGrid({ localItems, onEditClick, onDeleteClick, filt
               <div className="flex items-center gap-2">
                 <button 
                   onClick={(e) => { e.stopPropagation(); onToggleStatus && onToggleStatus(item); }}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${item.status === "Active" ? 'bg-teal-500' : 'bg-slate-300'}`}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${item.isActive !== false ? 'bg-teal-500' : 'bg-slate-300'}`}
                 >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${item.status === "Active" ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${item.isActive !== false ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
                 </button>
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${item.status === "Active" ? 'text-teal-600' : 'text-slate-500'}`}>
-                  {item.status}
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${item.isActive !== false ? 'text-teal-600' : 'text-slate-500'}`}>
+                  {item.isActive !== false ? "Active" : "Inactive"}
                 </span>
               </div>
               <div className="flex gap-1.5">
@@ -59,14 +59,21 @@ export default function PlansGrid({ localItems, onEditClick, onDeleteClick, filt
             <div>
               <div className="flex items-baseline space-x-1">
                 <span className="text-2xl font-black text-slate-800">₹{item.price}</span>
-                <span className="text-xs font-bold text-slate-500">/ delivery</span>
+                <span className="text-xs font-bold text-slate-500">/ month</span>
               </div>
-              <p className="text-[10px] font-bold text-teal-600 mt-0.5 uppercase tracking-wider">{item.frequency} Plan</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[10px] font-bold text-teal-600 uppercase tracking-wider">{item.frequency} Plan</p>
+                {(item.discountPercentage > 0) && (
+                  <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[9px] font-bold rounded-sm">
+                    {item.discountPercentage}% OFF
+                  </span>
+                )}
+              </div>
             </div>
             
             <div className="text-right">
               <span className="text-[10px] font-semibold text-slate-500 block mb-0.5">Active Subs</span>
-              <span className="text-sm font-black text-slate-800">{item.subscribers}</span>
+              <span className="text-sm font-black text-slate-800">{item.subscribers || "N/A"}</span>
             </div>
           </div>
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { getMe, updateMe, uploadAvatar, addFcmToken } = require('../controllers/userController');
+const { getMe, updateMe, uploadAvatar, addFcmToken, getWishlist, toggleWishlist } = require('../controllers/userController');
 const upload = require('../middlewares/uploadMiddleware');
 const { requireAuth } = require('../middlewares/authMiddleware');
 const { validate } = require('../middlewares/validateMiddleware');
@@ -16,5 +16,7 @@ router.patch('/me', validate({ body: updateProfileSchema }), updateMe);
 router.post('/me/avatar', upload.single('avatar'), uploadAvatar);
 router.patch('/me/fcm-token', addFcmToken);
 
+router.get('/me/wishlist', getWishlist);
+router.post('/me/wishlist/:productId', toggleWishlist);
 module.exports = router;
 

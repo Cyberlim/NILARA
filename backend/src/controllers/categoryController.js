@@ -4,7 +4,7 @@ const { generateUniqueSlug } = require('../utils/slugify');
 
 const createCategory = async (req, res, next) => {
   try {
-    const { name, imageUrl, sortOrder } = req.body;
+    const { name, imageUrl, sortOrder, bannerTitle, iconName, subcategories } = req.body;
 
     const slug = await generateUniqueSlug(name, Category);
 
@@ -12,6 +12,9 @@ const createCategory = async (req, res, next) => {
       name,
       slug,
       imageUrl,
+      bannerTitle,
+      iconName,
+      subcategories,
       sortOrder: sortOrder || 0,
       isActive: true
     });
@@ -55,7 +58,7 @@ const getCategoryBySlug = async (req, res, next) => {
 
 const updateCategory = async (req, res, next) => {
   try {
-    const { name, imageUrl, sortOrder, isActive } = req.body;
+    const { name, imageUrl, sortOrder, isActive, bannerTitle, iconName, subcategories } = req.body;
     
     const updateFields = {};
     if (name !== undefined) {
@@ -65,6 +68,9 @@ const updateCategory = async (req, res, next) => {
     if (imageUrl !== undefined) updateFields.imageUrl = imageUrl;
     if (sortOrder !== undefined) updateFields.sortOrder = sortOrder;
     if (isActive !== undefined) updateFields.isActive = isActive;
+    if (bannerTitle !== undefined) updateFields.bannerTitle = bannerTitle;
+    if (iconName !== undefined) updateFields.iconName = iconName;
+    if (subcategories !== undefined) updateFields.subcategories = subcategories;
 
     const category = await Category.findByIdAndUpdate(
       req.params.id,

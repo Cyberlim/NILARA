@@ -166,13 +166,31 @@ export default function SubscriptionListModal({ isOpen, onClose, filterType, sel
                     </div>
                     <div className="flex justify-between items-center pb-3 border-b border-slate-50">
                       <span className="text-xs font-semibold text-slate-500">Start Date</span>
-                      <span className="text-xs font-bold text-slate-700">{selectedItem.startDate}</span>
+                      <span className="text-xs font-bold text-slate-700">{new Date(selectedItem.startDate).toLocaleDateString()}</span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-50">
                       <span className="text-xs font-semibold text-slate-500">Next Delivery</span>
                       <span className={`text-xs font-bold ${selectedItem.status === 'Paused' || selectedItem.status === 'Cancelled' ? 'text-red-500' : 'text-teal-600'}`}>
                         {selectedItem.nextDelivery}
                       </span>
+                    </div>
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-50">
+                      <span className="text-xs font-semibold text-slate-500">Delivery Time</span>
+                      <span className="text-xs font-bold text-slate-700">{selectedItem.deliveryTime}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-xs font-semibold text-slate-500 mt-0.5">Skipped Dates</span>
+                      <div className="text-right flex flex-col items-end gap-1">
+                        {selectedItem.skippedDeliveries && selectedItem.skippedDeliveries.length > 0 ? (
+                          selectedItem.skippedDeliveries.map((date, idx) => (
+                            <span key={idx} className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md">
+                              {new Date(date).toLocaleDateString()}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400">None</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -184,14 +202,35 @@ export default function SubscriptionListModal({ isOpen, onClose, filterType, sel
                   
                   <div className="space-y-4 flex-1">
                     <div className="flex justify-between items-center pb-3 border-b border-slate-50">
-                      <span className="text-xs font-semibold text-slate-500">Assigned Driver</span>
-                      <span className="text-xs font-bold text-slate-700">{selectedItem.driver}</span>
+                      <span className="text-xs font-semibold text-slate-500">Payment Method</span>
+                      <span className="text-xs font-bold text-slate-700 uppercase">{selectedItem.paymentMethod}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-50">
+                      <span className="text-xs font-semibold text-slate-500">Leave at Door</span>
+                      <span className={`text-xs font-bold ${selectedItem.leaveAtDoor ? 'text-teal-600' : 'text-slate-400'}`}>
+                        {selectedItem.leaveAtDoor ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-50">
+                      <span className="text-xs font-semibold text-slate-500">Call Before Delivery</span>
+                      <span className={`text-xs font-bold ${selectedItem.callBeforeDelivery ? 'text-teal-600' : 'text-slate-400'}`}>
+                        {selectedItem.callBeforeDelivery ? 'Yes' : 'No'}
+                      </span>
                     </div>
                     <div className="pt-2 flex-1">
                       <span className="text-xs font-semibold text-slate-500 block mb-2">Delivery Address</span>
-                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 h-20 flex items-center justify-center text-center">
-                        <p className="text-xs font-medium text-slate-600">{selectedItem.address}</p>
+                      <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 min-h-[5rem] flex flex-col items-center justify-center text-center">
+                        <p className="text-xs font-medium text-slate-800">{selectedItem.address?.street}</p>
+                        {selectedItem.address?.apartment && <p className="text-xs text-slate-600">{selectedItem.address.apartment}</p>}
+                        {selectedItem.address?.landmark && <p className="text-xs text-slate-500 mt-1 italic">Landmark: {selectedItem.address.landmark}</p>}
                       </div>
+                      
+                      {selectedItem.specialInstructions && (
+                        <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                          <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block mb-1">Special Instructions</span>
+                          <p className="text-xs font-medium text-amber-800">{selectedItem.specialInstructions}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

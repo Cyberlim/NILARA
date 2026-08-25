@@ -16,7 +16,7 @@ const checkout = async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { items, deliveryAddressId, paymentMethod, customerNotes } = req.body;
+    const { items, deliveryAddressId, paymentMethod, customerNotes, deliveryTimePref } = req.body;
     const userId = req.auth.userId;
 
     // 1. Verify address ownership
@@ -106,6 +106,7 @@ const checkout = async (req, res, next) => {
       status: 'pending',
       deliveryAddressSnapshot,
       customerNotes,
+      deliveryTimePref,
       placedAt: new Date()
     }], { session });
 

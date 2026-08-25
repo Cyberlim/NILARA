@@ -7,7 +7,7 @@ const PAGE_SIZE = 8;
 const STATUSES = ["Active", "Inactive", "Low Stock"];
 const PRODUCT_RANGES = ["0-50", "51-150", "150+"];
 
-export default function CategoriesTable({ onRowClick, onEditClick }) {
+export default function CategoriesTable({ categories = [], onRowClick, onEditClick }) {
   const [localCategories, setLocalCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -16,6 +16,10 @@ export default function CategoriesTable({ onRowClick, onEditClick }) {
   const [selectedRanges, setSelectedRanges] = useState([]);
   const filterRef = useRef(null);
   const moreRef = useRef(null);
+
+  useEffect(() => {
+    setLocalCategories(categories);
+  }, [categories]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -178,7 +182,13 @@ export default function CategoriesTable({ onRowClick, onEditClick }) {
               >
                 <td className="py-4 px-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">{c.image}</div>
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden">
+                      {c.image?.startsWith("http") || c.image?.startsWith("/") ? (
+                        <img src={c.image} alt={c.name} className="w-full h-full object-cover" />
+                      ) : (
+                        c.image || "📦"
+                      )}
+                    </div>
                     <span className="text-sm font-bold text-slate-800">{c.name}</span>
                   </div>
                 </td>
@@ -187,7 +197,24 @@ export default function CategoriesTable({ onRowClick, onEditClick }) {
                 </td>
                 <td className="py-4 px-4 text-center">
                   <div className="flex flex-col items-center justify-center">
-                    <span className="text-sm font-bold text-teal-700">{c.subcategories}</span>
+                    <div className="flex flex-wrap gap-1 justify-center mb-1 max-w-[120px]">
+                      {Array.isArray(c.subcategories) ? (
+                        <>
+                          {c.subcategories.slice(0, 2).map((sub, i) => (
+                            <span key={i} className="text-[9px] font-bold bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded-md border border-teal-100 whitespace-nowrap">
+                              {sub}
+                            </span>
+                          ))}
+                          {c.subcategories.length > 2 && (
+                            <span className="text-[9px] font-bold bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">
+                              +{c.subcategories.length - 2}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-sm font-bold text-teal-700">{c.subcategories}</span>
+                      )}
+                    </div>
                     <button onClick={e => e.stopPropagation()} className="text-[10px] font-bold text-teal-500 hover:text-teal-600">View</button>
                   </div>
                 </td>
@@ -244,7 +271,13 @@ export default function CategoriesTable({ onRowClick, onEditClick }) {
                className="bg-slate-50 rounded-2xl p-4 border border-slate-100 hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-start gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-2xl flex-shrink-0">{c.image}</div>
+              <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
+                {c.image?.startsWith("http") || c.image?.startsWith("/") ? (
+                  <img src={c.image} alt={c.name} className="w-full h-full object-cover" />
+                ) : (
+                  c.image || "📦"
+                )}
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-slate-800 leading-tight truncate">{c.name}</p>
                 <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{c.description}</p>
@@ -257,7 +290,9 @@ export default function CategoriesTable({ onRowClick, onEditClick }) {
             <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subcategories</p>
-                <p className="text-sm font-black text-slate-800 mt-0.5">{c.subcategories}</p>
+                <p className="text-sm font-black text-slate-800 mt-0.5">
+                  {Array.isArray(c.subcategories) ? c.subcategories.length : c.subcategories}
+                </p>
               </div>
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Products</p>

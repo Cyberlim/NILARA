@@ -146,6 +146,16 @@ export default function DeliveryDetailModal({ isOpen, onClose, filterType, selec
                       </div>
                     </div>
                   )}
+
+                  {selectedItem.instructions && (
+                    <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-start">
+                      <Package className="w-5 h-5 text-slate-400 mt-0.5 mr-3 shrink-0" />
+                      <div>
+                        <p className="text-sm font-bold text-slate-700">Delivery Instructions</p>
+                        <p className="text-xs font-medium text-slate-500 mt-1">{selectedItem.instructions}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -189,6 +199,31 @@ export default function DeliveryDetailModal({ isOpen, onClose, filterType, selec
                     <button className="mt-4 px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-teal-600 hover:bg-teal-50 transition-colors w-full shadow-sm">
                       View on Map
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delivery Preferences / Info */}
+              <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm mt-4">
+                <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center">
+                  <Package className="w-4 h-4 mr-2 text-slate-400" /> Delivery Preferences
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-500 mb-1">Payment Method</span>
+                    <span className="text-sm font-black text-slate-800 uppercase">{selectedItem.paymentMethod}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-500 mb-1">Leave at Door</span>
+                    <span className={`text-sm font-bold ${selectedItem.leaveAtDoor ? 'text-teal-600' : 'text-slate-400'}`}>
+                      {selectedItem.leaveAtDoor ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-500 mb-1">Call Before Delivery</span>
+                    <span className={`text-sm font-bold ${selectedItem.callBeforeDelivery ? 'text-teal-600' : 'text-slate-400'}`}>
+                      {selectedItem.callBeforeDelivery ? 'Yes' : 'No'}
+                    </span>
                   </div>
                 </div>
               </div>

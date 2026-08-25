@@ -93,6 +93,7 @@ const orderSchema = new mongoose.Schema({
 
   customerNotes: { type: String, trim: true },
   cancellationReason: { type: String, trim: true },
+  deliveryTimePref: { type: String, trim: true },
 
   placedAt: { type: Date },
   acceptedAt: { type: Date },

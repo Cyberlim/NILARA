@@ -29,9 +29,9 @@ const SIDEBAR_GROUPS = [
     ]
   },
   {
-    label: "SUBSCRIPTIONS",
+    label: "SUBSCRIBERS",
     items: [
-      { title: "Subscriptions", path: "/subscriptions", icon: Calendar },
+      { title: "Subscribers", path: "/subscriptions", icon: Calendar },
       { title: "Delivery Calendar", path: "/delivery-calendar", icon: MapPin },
       { title: "Plans", path: "/plans", icon: FileText },
     ]

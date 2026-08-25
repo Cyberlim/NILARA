@@ -18,15 +18,16 @@ const createProductSchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),
   category: objectIdSchema,
-  images: z.array(z.string().trim().url()).min(1).max(10),
+  images: z.array(z.string().trim().url()).max(10).optional(),
   variants: z.array(variantSchema).min(1).max(20),
+  isActive: z.boolean().optional(),
 }).strict();
 
 const updateProductSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   description: z.string().trim().max(2000).optional(),
   category: objectIdSchema.optional(),
-  images: z.array(z.string().trim().url()).min(1).max(10).optional(),
+  images: z.array(z.string().trim().url()).max(10).optional(),
   variants: z.array(variantSchema).min(1).max(20).optional(),
   isActive: z.boolean().optional(),
 }).strict();

@@ -41,6 +41,10 @@ const userSchema = new mongoose.Schema({
   fcmTokens: [{
     type: String,
     trim: true
+  }],
+  wishlist: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
   }]
 }, {
   timestamps: true

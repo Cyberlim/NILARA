@@ -2,7 +2,7 @@
 
 import { Folder, Package, AlertTriangle, EyeOff, Box, Tag } from "lucide-react";
 
-export default function CategoriesKPI({ modalFilter, setModalFilter, setIsModalOpen }) {
+export default function CategoriesKPI({ categories = [], modalFilter, setModalFilter, setIsModalOpen }) {
   const getIcon = (iconName, color) => {
     const cls = `w-5 h-5 text-${color}-600`;
     switch (iconName) {
@@ -15,6 +15,17 @@ export default function CategoriesKPI({ modalFilter, setModalFilter, setIsModalO
       default: return null;
     }
   };
+
+  const total = categories.length;
+  const active = categories.filter(c => c.status === "Active").length;
+  const subcats = categories.reduce((acc, c) => acc + (typeof c.subcategories === 'number' ? c.subcategories : (c.subcategories?.length || 0)), 0);
+
+  const categoriesKPIs = [
+    { id: "total", label: "Total Categories", value: total.toString(), trend: "+2 this month", trendUp: true, icon: "folder", color: "teal" },
+    { id: "active", label: "Active Categories", value: active.toString(), trend: `${total - active} hidden`, trendUp: null, icon: "box", color: "blue" },
+    { id: "subcategories", label: "Subcategories", value: subcats.toString(), trend: "+5 this week", trendUp: true, icon: "package", color: "orange" },
+    { id: "empty", label: "Empty Categories", value: "0", trend: "Needs products", trendUp: false, icon: "alert", color: "red" }
+  ];
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
