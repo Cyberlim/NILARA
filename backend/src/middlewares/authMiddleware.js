@@ -49,8 +49,15 @@ const requireAuth = async (req, res, next) => {
       });
     }
 
-    const firebaseUid = decodedToken.uid;
-    const user = await User.findOne({ firebaseUid });
+    const firebaseUid = decodedToken.uid; console.log("Firebase Auth Request:", decodedToken.email, firebaseUid);
+    let user = await User.findOne({ firebaseUid });
+    if (!user && decodedToken.email) {
+      user = await User.findOne({ email: decodedToken.email });
+      if (user) {
+        user.firebaseUid = firebaseUid;
+        await user.save();
+      }
+    }
 
     if (!user) {
       req.auth = {
@@ -104,8 +111,15 @@ const optionalAuth = async (req, res, next) => {
       return next();
     }
 
-    const firebaseUid = decodedToken.uid;
-    const user = await User.findOne({ firebaseUid });
+    const firebaseUid = decodedToken.uid; console.log("Firebase Auth Request:", decodedToken.email, firebaseUid);
+    let user = await User.findOne({ firebaseUid });
+    if (!user && decodedToken.email) {
+      user = await User.findOne({ email: decodedToken.email });
+      if (user) {
+        user.firebaseUid = firebaseUid;
+        await user.save();
+      }
+    }
 
     if (user && user.isActive) {
       req.auth = {

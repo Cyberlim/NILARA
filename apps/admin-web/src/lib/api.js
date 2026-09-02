@@ -26,6 +26,10 @@ export async function fetchWithAuth(endpoint, options = {}) {
   const data = await response.json();
   
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('admin_auth_token');
+      window.location.href = '/login';
+    }
     throw new Error(data.message || data.error?.message || 'API Request Failed');
   }
 

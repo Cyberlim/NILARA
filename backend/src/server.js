@@ -23,6 +23,8 @@ const bulkOrderRoutes = require('./routes/bulkOrderRoutes');
 const marketingRoutes = require('./routes/marketingRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const ticketRoutes = require('./routes/ticketRoutes');
 
 const app = express();
 const httpServer = createServer(app);
@@ -43,11 +45,7 @@ const allowedOrigins = process.env.CORS_ORIGINS
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || origin.startsWith('http://localhost:') || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    callback(null, true); // Allow ALL origins in development
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -88,7 +86,7 @@ const initSocket = require('./config/socket');
 // ── Socket.io initialization ─────────────────────────────────────────────
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: "*",
     methods: ['GET', 'POST']
   }
 });
@@ -109,6 +107,8 @@ app.use('/api/v1/bulk-orders', bulkOrderRoutes);
 app.use('/api/v1/marketing', marketingRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/v1/chat', chatRoutes); // Keep for backwards compatibility if needed, but tickets will take over
+app.use('/api/v1/tickets', ticketRoutes);
 
 // Health check (no auth required)
 app.get('/health', (req, res) => {
@@ -147,4 +147,7 @@ module.exports = app;
 
 
 
+ 
+ 
+ 
  

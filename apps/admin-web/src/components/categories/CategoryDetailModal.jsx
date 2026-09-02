@@ -52,14 +52,14 @@ export default function CategoryDetailModal({ isOpen, onClose, category, onEditC
   const getTitle = () => {
     if (selectedProduct) return selectedProduct.name;
     if (view === "subcategories") return `${category.name} Subcategories`;
-    if (view === "products" && activeSubcategory) return `${activeSubcategory.name} Products`;
+    if (view === "products" && activeSubcategory) return `${activeSubcategory} Products`;
     if (view === "products") return `${category.name} Products`;
     return category.name;
   };
 
   const getSubtitle = () => {
     if (selectedProduct) return selectedProduct.sku;
-    if (view === "subcategories") return `Viewing ${category.subcategoriesList?.length || 0} subcategories.`;
+    if (view === "subcategories") return `Viewing ${category.subcategories?.length || 0} subcategories.`;
     if (view === "products" && activeSubcategory) return `Viewing ${displayProducts.length} products. (Part of ${category.name} Category)`;
     if (view === "products") return `Viewing ${displayProducts.length} products.`;
     return category.description;
@@ -113,9 +113,13 @@ export default function CategoryDetailModal({ isOpen, onClose, category, onEditC
                 <ChevronLeft className="w-4 h-4" />
               </button>
             )}
-            <div className="w-20 h-20 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center text-4xl flex-shrink-0 relative z-0">
-              {category.image}
-            </div>
+              <div className="w-20 h-20 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center text-4xl flex-shrink-0 relative overflow-hidden z-0">
+                {category.image ? (
+                  <img src={category.image} alt={category.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-slate-300">?</span>
+                )}
+              </div>
             <div className="flex-1 pt-1 pl-2">
               <div className="flex items-center gap-3 mb-1">
                 <h2 className="text-2xl font-black text-slate-800 tracking-tight">
@@ -170,10 +174,18 @@ export default function CategoryDetailModal({ isOpen, onClose, category, onEditC
                 <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
                   <Box className="w-5 h-5" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subcategories</p>
-                  <p className="text-lg font-black text-slate-800 leading-tight">{category.subcategories}</p>
-                </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subcategories</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {category.subcategories?.length ? category.subcategories.map((sub, i) => (
+                        <span key={i} className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-semibold">
+                          {sub}
+                        </span>
+                      )) : (
+                        <span className="text-slate-400 text-sm font-semibold">None</span>
+                      )}
+                    </div>
+                  </div>
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-orange-500 transition-colors" />
               </div>
               <div 
@@ -193,25 +205,24 @@ export default function CategoryDetailModal({ isOpen, onClose, category, onEditC
                 <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
                   <IndianRupee className="w-5 h-5" />
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Inventory Value</p>
-                  <p className="text-lg font-black text-slate-800 leading-tight">₹{category.value}</p>
-                </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Inventory Value</p>
+                    <p className="text-lg font-black text-slate-800 leading-tight">₹{category.inventory || 0}</p>
+                  </div>
               </div>
               <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500">
                   <Calendar className="w-5 h-5" />
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Added On</p>
-                  <p className="text-sm font-bold text-slate-800 leading-tight">{category.addedDate}</p>
-                  <p className="text-xs text-slate-400">{category.addedTime}</p>
-                </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Updated On</p>
+                    <p className="text-sm font-bold text-slate-800 leading-tight">{category.updatedDate || 'N/A'}</p>
+                  </div>
               </div>
             </div>
           ) : view === "subcategories" ? (
             <div className="space-y-3">
-              {category.subcategoriesList?.map((sub, idx) => (
+              {category.subcategories?.map((sub, idx) => (
                 <div 
                   key={idx} 
                   onClick={() => {
@@ -222,26 +233,13 @@ export default function CategoryDetailModal({ isOpen, onClose, category, onEditC
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-400 font-mono text-[10px] group-hover:scale-105 transition-transform">
-                      {sub.id.split('-')[1]}
+                      {String(idx + 1).padStart(2, '0')}
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-800 group-hover:text-teal-700 transition-colors">{sub.name}</h4>
-                      <p className="text-xs text-slate-500">{sub.products} Products</p>
+                      <h4 className="text-sm font-bold text-slate-800 group-hover:text-teal-700 transition-colors">{sub}</h4>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      sub.status === "Active" ? "bg-green-50 text-green-700 border border-green-100/50" : 
-                      sub.status === "Low Stock" ? "bg-orange-50 text-orange-700 border border-orange-100/50" :
-                      "bg-slate-100 text-slate-600 border border-slate-200"
-                    }`}>
-                      <span className={`w-1 h-1 rounded-full ${
-                        sub.status === "Active" ? "bg-green-500" : 
-                        sub.status === "Low Stock" ? "bg-orange-500" :
-                        "bg-slate-400"
-                      } mr-1`}></span>
-                      {sub.status}
-                    </span>
                     <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
                   </div>
                 </div>

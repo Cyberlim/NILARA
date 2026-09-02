@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings, Shield, Bell, Save, Store, X, Image as ImageIcon, Upload } from "lucide-react";
+import { Settings, Shield, Bell, Save, Store, X, Image as ImageIcon, Upload, CheckCircle, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import TwoFactorModal from "@/components/settings/TwoFactorModal";
 
@@ -15,10 +15,14 @@ const tabs = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
+  const [selectedBannerTab, setSelectedBannerTab] = useState("Water");
+  const [selectedCarouselTab, setSelectedCarouselTab] = useState("Water");
   const [logoPreview, setLogoPreview] = useState("https://api.dicebear.com/7.x/shapes/svg?seed=Nilara");
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
   const [is2FAModalOpen, setIs2FAModalOpen] = useState(false);
   const [twoFactorMode, setTwoFactorMode] = useState('enable');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   
   const [storeSettings, setStoreSettings] = useState({
     handlingCharge: 2,
@@ -31,7 +35,8 @@ export default function SettingsPage() {
       chatResponseTime: 'Usually replies within 5 minutes'
     },
     faqs: [],
-    homeBanners: []
+    homeBanners: [],
+    carouselBanners: []
   });
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
 
@@ -61,16 +66,19 @@ export default function SettingsPage() {
         });
         const data = await res.json();
         if (data.success) {
-          alert('Settings updated successfully!');
+          setSuccessMessage('Settings updated successfully!');
+          setTimeout(() => setSuccessMessage(''), 3000);
         }
       } catch (err) {
         console.error("Error saving settings", err);
-        alert('Failed to save settings');
+        setErrorMessage('Failed to save settings');
+        setTimeout(() => setErrorMessage(''), 3000);
       } finally {
         setIsLoadingSettings(false);
       }
     } else {
-      alert('Settings saved!');
+      setSuccessMessage('Settings saved!');
+      setTimeout(() => setSuccessMessage(''), 3000);
     }
   };
 
@@ -82,8 +90,11 @@ export default function SettingsPage() {
     formData.append('images', file);
     
     try {
-      const res = await fetch('http://localhost:5000/api/v1/upload/images', {
+      const res = await fetch('http://localhost:5000/api/v1/uploads/images', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_auth_token')}`
+        },
         body: formData,
       });
       const data = await res.json();
@@ -91,6 +102,70 @@ export default function SettingsPage() {
         const newBanners = [...(storeSettings.homeBanners || [])];
         newBanners[index].img = data.data[0];
         setStoreSettings({ ...storeSettings, homeBanners: newBanners });
+        setSuccessMessage('Banner uploaded locally! Remember to save settings.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        console.error('Upload error:', data);
+        setErrorMessage(`Upload failed: ${data.error?.message || data.message || 'Unknown error'}`);
+        setTimeout(() => setErrorMessage(''), 5000);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMessage(`Upload failed: ${err.message}`);
+      setTimeout(() => setErrorMessage(''), 5000);
+    }
+  };
+
+  const handleCarouselBannerUpload = async (index, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('images', file);
+    
+    try {
+      const res = await fetch('http://localhost:5000/api/v1/uploads/images', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_auth_token')}`
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success && data.data.length > 0) {
+        const newBanners = [...(storeSettings.carouselBanners || [])];
+        newBanners[index].img = data.data[0];
+        setStoreSettings({ ...storeSettings, carouselBanners: newBanners });
+        setSuccessMessage('Carousel banner uploaded locally! Remember to save settings.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+    } catch (e) {
+      console.error('Upload error', e);
+      setErrorMessage('Failed to upload carousel banner');
+      setTimeout(() => setErrorMessage(''), 3000);
+    }
+  };
+
+  const handleCategoryTabUpload = async (index, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('images', file);
+    
+    try {
+      const res = await fetch('http://localhost:5000/api/v1/upload/images', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_auth_token')}`
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success && data.data.length > 0) {
+        const newTabs = [...(storeSettings.categoryTabs || [])];
+        newTabs[index].img = data.data[0];
+        setStoreSettings({ ...storeSettings, categoryTabs: newTabs });
       } else {
         alert('Upload failed');
       }
@@ -111,6 +186,20 @@ export default function SettingsPage() {
   return (
     <div className="max-w-[1200px] mx-auto pb-10">
       
+      {/* Toast Messages */}
+      {successMessage && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl flex items-center shadow-sm">
+          <CheckCircle className="w-5 h-5 mr-3 text-green-500" />
+          <span className="font-semibold text-sm">{successMessage}</span>
+        </div>
+      )}
+      {errorMessage && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center shadow-sm">
+          <AlertCircle className="w-5 h-5 mr-3 text-red-500" />
+          <span className="font-semibold text-sm">{errorMessage}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
@@ -129,7 +218,6 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         
-        {/* Sidebar */}
         {/* Sidebar */}
         <div className="md:col-span-1 flex gap-2 md:block md:space-y-2">
           {tabs.map((tab) => {
@@ -504,8 +592,27 @@ export default function SettingsPage() {
                 <p className="text-xs font-medium text-slate-500 mb-6">Manage the circular banners on the top of the user app home screen.</p>
                 
                 <div className="space-y-6">
+                  {/* Category Tab Selector for Banners */}
+                  <div className="flex space-x-2 overflow-x-auto pb-2">
+                    {(storeSettings.categoryTabs || []).map((tab) => (
+                      <button
+                        key={tab.name}
+                        onClick={() => setSelectedBannerTab(tab.name)}
+                        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                          selectedBannerTab === tab.name
+                            ? 'bg-teal-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {tab.name}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {(storeSettings.homeBanners || []).map((banner, index) => (
+                    {(storeSettings.homeBanners || []).map((banner, index) => {
+                      if (banner.tabName !== selectedBannerTab) return null;
+                      return (
                       <div key={index} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
                         <div className="aspect-square bg-white rounded-lg border border-slate-200 overflow-hidden mb-4 relative group flex items-center justify-center">
                           {banner.img ? (
@@ -572,11 +679,12 @@ export default function SettingsPage() {
                           </button>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                     
                     <button 
                       onClick={() => {
-                        const newBanners = [...(storeSettings.homeBanners || []), { img: '', actionType: 'category', searchQuery: '' }];
+                        const newBanners = [...(storeSettings.homeBanners || []), { img: '', actionType: 'category', searchQuery: '', tabName: selectedBannerTab }];
                         setStoreSettings({ ...storeSettings, homeBanners: newBanners });
                       }}
                       className="border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center p-6 text-slate-400 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 transition-all min-h-[300px]"
@@ -586,6 +694,144 @@ export default function SettingsPage() {
                       </div>
                       <span className="text-sm font-bold">Add New Banner</span>
                     </button>
+                  </div>
+                </div>
+                
+                <div className="pt-8 border-t border-slate-100">
+                  <h3 className="text-lg font-black text-slate-800 mb-1">Carousel Banners</h3>
+                  <p className="text-xs font-medium text-slate-500 mb-6">Manage the auto-playing image carousels at the top of the user app.</p>
+                  
+                  <div className="space-y-6">
+                    <div className="flex space-x-2 overflow-x-auto pb-2">
+                      {(storeSettings.categoryTabs || []).map((tab) => (
+                        <button
+                          key={tab.name}
+                          onClick={() => setSelectedCarouselTab(tab.name)}
+                          className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                            selectedCarouselTab === tab.name
+                              ? 'bg-teal-600 text-white shadow-sm'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {tab.name}
+                        </button>
+                      ))}
+                    </div>
+  
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {(storeSettings.carouselBanners || []).map((banner, index) => {
+                        if (banner.tabName !== selectedCarouselTab) return null;
+                        return (
+                        <div key={index} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                          <div className="aspect-[4/3] bg-white rounded-lg border border-slate-200 overflow-hidden mb-4 relative group flex items-center justify-center">
+                            {banner.img ? (
+                              banner.img.startsWith('http') ? (
+                                <img src={banner.img} alt="Banner" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="text-center p-4">
+                                  <ImageIcon className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                                  <p className="text-[10px] text-slate-400">Local Asset:<br/>{banner.img.split('/').pop()}</p>
+                                </div>
+                              )
+                            ) : (
+                              <ImageIcon className="w-10 h-10 text-slate-300" />
+                            )}
+                            <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white">
+                              <Upload className="w-6 h-6 mb-2" />
+                              <span className="text-xs font-bold">Upload New</span>
+                              <input type="file" className="hidden" accept="image/*" onChange={(e) => handleCarouselBannerUpload(index, e)} />
+                            </label>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Action Type</label>
+                              <select 
+                                value={banner.actionType || 'category'} 
+                                onChange={(e) => {
+                                  const newBanners = [...(storeSettings.carouselBanners || [])];
+                                  newBanners[index].actionType = e.target.value;
+                                  setStoreSettings({ ...storeSettings, carouselBanners: newBanners });
+                                }}
+                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
+                              >
+                                <option value="category">Category Filter</option>
+                                <option value="bulk_order">Bulk Orders Screen</option>
+                              </select>
+                            </div>
+                            
+                            {banner.actionType !== 'bulk_order' && (
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Search Query / Filter</label>
+                                <input 
+                                  type="text"
+                                  value={banner.searchQuery || ''}
+                                  placeholder="e.g. 20l|can"
+                                  onChange={(e) => {
+                                    const newBanners = [...(storeSettings.carouselBanners || [])];
+                                    newBanners[index].searchQuery = e.target.value;
+                                    setStoreSettings({ ...storeSettings, carouselBanners: newBanners });
+                                  }}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
+                                />
+                              </div>
+                            )}
+                            
+                            <button 
+                              onClick={() => {
+                                const newBanners = (storeSettings.carouselBanners || []).filter((_, i) => i !== index);
+                                setStoreSettings({ ...storeSettings, carouselBanners: newBanners });
+                              }}
+                              className="w-full py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              Remove Banner
+                            </button>
+                          </div>
+                        </div>
+                        );
+                      })}
+                      
+                      <button 
+                        onClick={() => {
+                          const newBanners = [...(storeSettings.carouselBanners || []), { img: '', actionType: 'category', searchQuery: '', tabName: selectedCarouselTab }];
+                          setStoreSettings({ ...storeSettings, carouselBanners: newBanners });
+                        }}
+                        className="border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center p-6 text-slate-400 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 transition-all min-h-[300px]"
+                      >
+                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                          <span className="text-xl font-bold">+</span>
+                        </div>
+                        <span className="text-sm font-bold">Add New Banner</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="pt-8 border-t border-slate-100">
+                <h3 className="text-lg font-black text-slate-800 mb-1">Category Tabs</h3>
+                <p className="text-xs font-medium text-slate-500 mb-6">Manage the main categories shown on the top of the user app home screen.</p>
+                
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                    {(storeSettings.categoryTabs || []).map((tab, index) => (
+                      <div key={index} className="border border-slate-200 rounded-xl p-4 bg-slate-50 flex flex-col items-center">
+                        <div className="w-full">
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 text-center">Tab Name</label>
+                          <input 
+                            type="text"
+                            value={tab.name || ''}
+                            onChange={(e) => {
+                              const newTabs = [...(storeSettings.categoryTabs || [])];
+                              newTabs[index].name = e.target.value;
+                              setStoreSettings({ ...storeSettings, categoryTabs: newTabs });
+                            }}
+                            className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 text-center"
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

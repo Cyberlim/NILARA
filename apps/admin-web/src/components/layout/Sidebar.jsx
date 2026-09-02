@@ -6,7 +6,7 @@ import {
   Home, ShoppingBag, Grid, PackageSearch, Receipt, Users, Bike,
   Calendar, CreditCard, Droplets, MapPin, BadgeDollarSign, HeartHandshake,
   Megaphone, Tag, Image as ImageIcon, Wallet, Banknote, FileText, BadgeCheck, X,
-  Mail, Bell, User, Settings, Layers, LogOut
+  Mail, Bell, User, Settings, Layers, LogOut, MessageSquare
 } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAuth } from "@/context/AuthContext";
@@ -42,6 +42,7 @@ const SIDEBAR_GROUPS = [
     items: [
       { title: "Customers", path: "/customers", icon: Users },
       { title: "Wallets", path: "/wallets", icon: Wallet },
+      { title: "Live Chat", path: "/chat", icon: MessageSquare },
     ]
   },
   {

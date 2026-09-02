@@ -14,6 +14,8 @@ export default function Topbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [recentMessages, setRecentMessages] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef(null);
   const rightIconsRef = useRef(null);
   const router = useRouter();
@@ -32,6 +34,29 @@ export default function Topbar() {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Fetch recent messages
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const { fetchWithAuth } = await import("@/lib/api");
+        const data = await fetchWithAuth('/chat/recent');
+        if (data && data.success) {
+          setRecentMessages(data.chats || []);
+          // Count unread (assuming lastMessage has isRead and senderId)
+          const unread = (data.chats || []).filter(c => c.lastMessage && !c.lastMessage.isRead && c.lastMessage.senderId !== 'admin').length;
+          setUnreadCount(unread);
+        }
+      } catch (err) {
+        console.error("Failed to load messages for topbar", err);
+      }
+    };
+    fetchMessages();
+    
+    // Poll every 30 seconds for new messages
+    const interval = setInterval(fetchMessages, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Search Logic
@@ -194,19 +219,59 @@ export default function Topbar() {
         <div>
           <button 
             onClick={() => setActiveDropdown(activeDropdown === 'messages' ? null : 'messages')}
-            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${activeDropdown === 'messages' ? 'bg-teal-50 text-teal-600' : 'text-slate-600 hover:bg-slate-50 hover:text-teal-600'}`}
+            className={`w-10 h-10 flex items-center justify-center rounded-full relative transition-colors ${activeDropdown === 'messages' ? 'bg-teal-50 text-teal-600' : 'text-slate-600 hover:bg-slate-50 hover:text-teal-600'}`}
           >
             <Mail className="w-6 h-6" />
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+            )}
           </button>
           {activeDropdown === 'messages' && (
             <div className="fixed sm:absolute top-[85px] sm:top-full left-4 right-4 sm:left-auto sm:right-12 sm:mt-4 sm:w-80 bg-white rounded-2xl shadow-[0_10px_40px_rgb(0,0,0,0.1)] border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top sm:origin-top-right">
               <div className="p-4 border-b border-slate-100 bg-slate-50">
                 <h4 className="font-bold text-slate-800 text-sm">Messages</h4>
               </div>
-              <div className="p-8 text-center">
-                <Mail className="w-8 h-8 text-slate-200 mx-auto mb-3" />
-                <p className="text-sm font-bold text-slate-600">No new messages</p>
-                <p className="text-xs font-medium text-slate-400 mt-1">You're all caught up for today!</p>
+              
+              {recentMessages.length === 0 ? (
+                <div className="p-8 text-center">
+                  <Mail className="w-8 h-8 text-slate-200 mx-auto mb-3" />
+                  <p className="text-sm font-bold text-slate-600">No new messages</p>
+                  <p className="text-xs font-medium text-slate-400 mt-1">You're all caught up for today!</p>
+                </div>
+              ) : (
+                <div className="p-2 max-h-[300px] overflow-y-auto hide-scrollbar">
+                  {recentMessages.map((chat) => (
+                    <div 
+                      key={chat.userId} 
+                      onClick={() => {
+                        setActiveDropdown(null);
+                        router.push(`/chat?userId=${chat.userId}`);
+                      }}
+                      className="p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border-b border-slate-50 last:border-0 flex space-x-3 items-start"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 flex-shrink-0 font-bold">
+                        {chat.user?.displayName ? chat.user.displayName.substring(0, 2).toUpperCase() : 'U'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center mb-0.5">
+                          <p className={`text-sm truncate ${!chat.lastMessage.isRead && chat.lastMessage.senderId !== 'admin' ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
+                            {chat.user?.displayName || chat.user?.email || chat.user?.phone || 'Unknown User'}
+                          </p>
+                          <p className="text-[10px] text-slate-400 whitespace-nowrap">
+                            {new Date(chat.lastMessage.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </p>
+                        </div>
+                        <p className={`text-xs truncate ${!chat.lastMessage.isRead && chat.lastMessage.senderId !== 'admin' ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
+                          {chat.lastMessage.senderId === 'admin' ? 'You: ' : ''}{chat.lastMessage.text}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="p-3 border-t border-slate-100 text-center cursor-pointer hover:bg-slate-50 transition-colors">
+                <span onClick={() => { setActiveDropdown(null); router.push('/chat'); }} className="text-xs font-bold text-teal-600">Open Chat Inbox</span>
               </div>
             </div>
           )}
