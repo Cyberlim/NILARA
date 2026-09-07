@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'order_delivered_screen.dart';
+import '../services/delivery_service.dart';
+
 
 class ActiveDeliveryScreen extends StatefulWidget {
   const ActiveDeliveryScreen({super.key});
@@ -98,12 +100,18 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context); // Close bottom sheet
-                    Navigator.pushReplacement(
-                      context, 
-                      MaterialPageRoute(builder: (context) => const OrderDeliveredScreen())
-                    );
+                  onPressed: () async {
+                    final order = DeliveryService().activeOrder.value;
+                    if (order != null) {
+                      final success = await DeliveryService().updateDeliveryStatus(order['_id'], 'delivered');
+                      if (success && context.mounted) {
+                        Navigator.pop(context); // Close bottom sheet
+                        Navigator.pushReplacement(
+                          context, 
+                          MaterialPageRoute(builder: (context) => const OrderDeliveredScreen())
+                        );
+                      }
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1E9C1C),

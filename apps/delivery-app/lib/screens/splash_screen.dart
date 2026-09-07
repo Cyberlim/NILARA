@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'onboarding_screen.dart';
+import 'login_screen.dart';
+import 'dashboard_screen.dart';
+import '../services/user_service.dart';
+
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,7 +27,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OnboardingScreen()));
+        if (UserService().token.value != null) {
+          final isComplete = UserService().currentUser.value?.onboardingComplete ?? false;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => isComplete ? const DashboardScreen() : const OnboardingScreen()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        }
       }
     });
   }

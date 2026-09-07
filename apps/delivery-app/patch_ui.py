@@ -1,119 +1,10 @@
+import re
 
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
-import '../services/user_service.dart';
-import 'dashboard_screen.dart';
+with open("lib/screens/onboarding_screen.dart", "r", encoding="utf-8") as f:
+    content = f.read()
 
-class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
-
-  @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
-}
-
-class _OnboardingScreenState extends State<OnboardingScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final ImagePicker _picker = ImagePicker();
-
-  String _vehicleType = 'Bike';
-  final TextEditingController _vehicleNumberController = TextEditingController();
-  final TextEditingController _aadharNumberController = TextEditingController();
-  final TextEditingController _drivingLicenseController = TextEditingController();
-
-  XFile? _aadharImage;
-  XFile? _drivingLicenseImage;
-  XFile? _vehicleFrontImage;
-  XFile? _vehicleBackImage;
-  XFile? _profileImage;
-  bool _isLoading = false;
-
-  Future<void> _pickImage(int type) async {
-    try {
-      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setState(() {
-          if (type == 1) _aadharImage = pickedFile;
-          else if (type == 2) _drivingLicenseImage = pickedFile;
-          else if (type == 3) _vehicleFrontImage = pickedFile;
-          else if (type == 4) _vehicleBackImage = pickedFile;
-          else if (type == 5) _profileImage = pickedFile;
-        });
-      }
-    } catch (e) {
-      print("Error picking image: $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error picking image: $e")));
-    }
-  }
-
-  Future<void> _submitOnboarding() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_aadharImage == null || _drivingLicenseImage == null || _vehicleFrontImage == null || _vehicleBackImage == null || _profileImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload all required images including vehicle photos.')),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final token = UserService().token.value;
-      var request = http.MultipartRequest(
-        'POST', 
-        Uri.parse('http://localhost:5000/api/v1/delivery/onboarding')
-      );
-      
-      request.headers['Authorization'] = 'Bearer $token';
-      request.fields['vehicleType'] = _vehicleType;
-      request.fields['vehicleNumber'] = _vehicleNumberController.text.trim();
-      request.fields['aadharNumber'] = _aadharNumberController.text.trim();
-      request.fields['drivingLicenseNumber'] = _drivingLicenseController.text.trim();
-      
-      request.files.add(await http.MultipartFile.fromPath('aadharImage', _aadharImage!.path));
-      request.files.add(await http.MultipartFile.fromPath('drivingLicenseImage', _drivingLicenseImage!.path));
-      request.files.add(await http.MultipartFile.fromPath('vehicleFrontImage', _vehicleFrontImage!.path));
-      request.files.add(await http.MultipartFile.fromPath('vehicleBackImage', _vehicleBackImage!.path));
-      request.files.add(await http.MultipartFile.fromPath('profileImage', _profileImage!.path));
-
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        // Update local state
-        final user = UserService().currentUser.value;
-        if (user != null) {
-          user.onboardingComplete = true;
-        }
-        
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const DashboardScreen()),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to submit KYC details.')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error occurred: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  @override
+# Build the new UI code
+new_build = """  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F7),
@@ -193,7 +84,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
                             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
                           ),
-                          items: ['Bike', 'Scooter', 'Cycle', 'Auto'].map((type) {
+                          items: ['Bike', 'Scooter', 'Cycle'].map((type) {
                             return DropdownMenuItem(value: type, child: Text(type, style: GoogleFonts.outfit()));
                           }).toList(),
                           onChanged: (val) => setState(() => _vehicleType = val!),
@@ -365,7 +256,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildImagePickerRow({required String title, XFile? imageFile, required VoidCallback onTap}) {
+  Widget _buildImagePickerRow({required String title, File? imageFile, required VoidCallback onTap}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -402,3 +293,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 }
+"""
+
+start_idx = content.find("  @override\n  Widget build(BuildContext context) {")
+if start_idx != -1:
+    content = content[:start_idx] + new_build
+
+with open("lib/screens/onboarding_screen.dart", "w", encoding="utf-8") as f:
+    f.write(content)

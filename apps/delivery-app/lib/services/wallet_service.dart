@@ -1,72 +1,84 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'user_service.dart';
 
 class WalletService {
   static final WalletService instance = WalletService._internal();
+  factory WalletService() => instance;
   WalletService._internal();
 
-  final ValueNotifier<double> balanceNotifier = ValueNotifier<double>(1250.00);
-  final ValueNotifier<double> lastPayoutAmountNotifier = ValueNotifier<double>(4500.00);
-  final ValueNotifier<String> lastPayoutDateNotifier = ValueNotifier<String>("28 Oct");
+  final String baseUrl = 'http://localhost:5000/api/v1/delivery';
 
-  final ValueNotifier<List<Map<String, dynamic>>> transactionsNotifier = ValueNotifier<List<Map<String, dynamic>>>([
-    {
-      "title": "Order Delivered (#8921)",
-      "time": "10:30 AM",
-      "amount": "+₹45.00",
-      "isCredit": true,
-      "type": "Order",
-      "status": "Completed"
-    },
-    {
-      "title": "Incentive Bonus (5 Orders)",
-      "time": "09:00 AM",
-      "amount": "+₹50.00",
-      "isCredit": true,
-      "type": "Incentive",
-      "status": "Completed"
-    },
-    {
-      "title": "Order Delivered (#8920)",
-      "time": "08:15 AM",
-      "amount": "+₹35.00",
-      "isCredit": true,
-      "type": "Order",
-      "status": "Completed"
-    },
-    {
-      "title": "Order Delivered (#8919)",
-      "time": "07:40 AM",
-      "amount": "+₹60.00",
-      "isCredit": true,
-      "type": "Order",
-      "status": "Completed"
-    },
-    {
-      "title": "Bank Transfer (HDFC •••• 4321)",
-      "time": "Yesterday",
-      "amount": "-₹4,500.00",
-      "isCredit": false,
-      "type": "Withdrawal",
-      "status": "Completed"
-    },
-  ]);
+  final ValueNotifier<double> balanceNotifier = ValueNotifier<double>(0.0);
+  final ValueNotifier<double> lastPayoutAmountNotifier = ValueNotifier<double>(0.0);
+  final ValueNotifier<String> lastPayoutDateNotifier = ValueNotifier<String>("Never");
+  final ValueNotifier<List<Map<String, dynamic>>> transactionsNotifier = ValueNotifier<List<Map<String, dynamic>>>([]);
 
-  void withdraw(double amount, String bankName) {
-    final double currentBal = balanceNotifier.value;
-    final double newBal = (currentBal - amount).clamp(0.0, double.infinity);
-    balanceNotifier.value = newBal;
-    lastPayoutAmountNotifier.value = amount;
-    lastPayoutDateNotifier.value = "Today";
+  Future<void> fetchWalletData() async {
+    final token = UserService().token.value;
+    if (token == null) return;
 
-    final List<Map<String, dynamic>> updatedList = List<Map<String, dynamic>>.from(transactionsNotifier.value);
-    updatedList.insert(0, {
-      "title": "Withdrawal to $bankName",
-      "time": "Just now",
-      "amount": "-₹${amount.toStringAsFixed(2)}",
-      "isCredit": false,
-      "type": "Withdrawal",
-      "status": "Completed"
-    });
-    transactionsNotifier.value = updatedList;
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/wallet'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body)['data'];
+        balanceNotifier.value = (data['balance'] as num).toDouble();
+        
+        final List<dynamic> rawTx = data['transactions'];
+        
+        // Find last payout for UI
+        final payouts = rawTx.where((t) => t['type'] == 'debit').toList();
+        if (payouts.isNotEmpty) {
+          lastPayoutAmountNotifier.value = (payouts.first['amount'] as num).toDouble();
+          final date = DateTime.parse(payouts.first['createdAt']).toLocal();
+          lastPayoutDateNotifier.value = "${date.day}/${date.month}/${date.year}";
+        }
+        
+        // Map to UI format
+        transactionsNotifier.value = rawTx.map((tx) {
+          final isCredit = tx['type'] == 'credit';
+          return {
+            "title": tx['description'] ?? 'Transaction',
+            "time": DateTime.parse(tx['createdAt']).toLocal().toString().split('.')[0],
+            "amount": "${isCredit ? '+' : '-'}?${(tx['amount'] as num).toStringAsFixed(2)}",
+            "isCredit": isCredit,
+            "type": isCredit ? "Order" : "Withdrawal",
+            "status": tx['status'] == 'pending_payout' ? "Pending" : "Completed"
+          };
+        }).toList();
+      }
+    } catch (e) {
+      debugPrint("Error fetching wallet data: $e");
+    }
+  }
+
+  Future<void> withdraw(double amount, String bankName) async {
+    final token = UserService().token.value;
+    if (token == null) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/wallet/payout'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'amount': amount}),
+      );
+
+      if (response.statusCode == 200) {
+        await fetchWalletData();
+      }
+    } catch (e) {
+      debugPrint("Error requesting payout: $e");
+    }
   }
 }

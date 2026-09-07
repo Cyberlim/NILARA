@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dashboard_screen.dart';
+import 'onboarding_screen.dart';
+
+import '../services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,40 +33,33 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _handleAuthentication() async {
     // Basic validation
-    if (_isSignUpMode) {
-      if (_nameController.text.trim().isEmpty) {
-        _showSnackBar("Please enter your Full Name");
-        return;
-      }
-      if (_emailController.text.trim().isEmpty || !_emailController.text.contains('@')) {
-        _showSnackBar("Please enter a valid Email address");
-        return;
-      }
-      if (_passwordController.text.trim().length < 6) {
-        _showSnackBar("Password must be at least 6 characters");
-        return;
-      }
-    } else {
-      if (_emailController.text.trim().isEmpty) {
-        _showSnackBar("Please enter your Email address");
-        return;
-      }
-      if (_passwordController.text.trim().isEmpty) {
-        _showSnackBar("Please enter your Password");
-        return;
-      }
+    if (_emailController.text.trim().isEmpty) {
+      _showSnackBar("Please enter your Email address");
+      return;
+    }
+    if (_passwordController.text.trim().isEmpty) {
+      _showSnackBar("Please enter your Password");
+      return;
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _isLoading = false);
+    
+    final success = await UserService().login(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
 
     if (mounted) {
-      // Directly navigate partner to the Home Dashboard screen!
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
-      );
+      setState(() => _isLoading = false);
+      if (success) {
+        final isComplete = UserService().currentUser.value?.onboardingComplete ?? false;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => isComplete ? const DashboardScreen() : const OnboardingScreen()),
+        );
+      } else {
+        _showSnackBar("Login failed. Check credentials or ensure you are a Delivery Partner.");
+      }
     }
   }
 

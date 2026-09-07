@@ -1,32 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'order_picked_up_screen.dart';
-import 'active_delivery_screen.dart';
-import '../services/delivery_service.dart';
+import re
 
-class NewOrderScreen extends StatelessWidget {
-  const NewOrderScreen({super.key});
+with open("lib/screens/new_order_screen.dart", "r", encoding="utf-8") as f:
+    content = f.read()
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text("New Order", style: GoogleFonts.outfit(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.volume_up_outlined, color: Colors.black87),
-            onPressed: () {},
-          )
-        ],
-      ),
-      body: ValueListenableBuilder<List<dynamic>>(
+# Replace the static single order with a list builder
+new_body = """      body: ValueListenableBuilder<List<dynamic>>(
         valueListenable: DeliveryService().availableOrders,
         builder: (context, orders, child) {
           if (orders.isEmpty) {
@@ -100,7 +78,15 @@ class NewOrderScreen extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
+      ),"""
+
+# Perform replacements
+content = content.replace("import 'active_delivery_screen.dart';", "import 'active_delivery_screen.dart';\nimport '../services/delivery_service.dart';")
+# Find the body starting at "body: SingleChildScrollView(" and replace to end
+start_idx = content.find("      body: SingleChildScrollView(")
+if start_idx != -1:
+    end_idx = content.rfind("    );\n  }\n}")
+    content = content[:start_idx] + new_body + "\n" + content[end_idx:]
+
+with open("lib/screens/new_order_screen.dart", "w", encoding="utf-8") as f:
+    f.write(content)
