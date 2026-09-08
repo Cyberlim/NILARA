@@ -27,6 +27,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const cartRoutes = require('./routes/cartRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 const httpServer = createServer(app);
@@ -113,6 +114,7 @@ app.use('/api/v1/chat', chatRoutes); // Keep for backwards compatibility if need
 app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/cart', cartRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // Health check (no auth required)
 app.get('/health', (req, res) => {

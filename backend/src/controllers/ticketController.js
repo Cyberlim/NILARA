@@ -51,7 +51,7 @@ exports.getTickets = async (req, res, next) => {
     // Populate user info and last message
     const populatedTickets = await Promise.all(
       tickets.map(async (ticket) => {
-        const user = await User.findById(ticket.userId).select('displayName email phone photoUrl');
+        const user = await User.findById(ticket.userId).select('displayName email phone photoUrl role');
         const lastMessage = await Message.findOne({ ticketId: ticket._id }).sort({ createdAt: -1 });
         return {
           ...ticket.toObject(),
@@ -110,3 +110,29 @@ exports.closeTicket = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.updateTicketStatus = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { status } = req.body;
+    const role = req.auth.role;
+
+    if (role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admins can update ticket status' });
+    }
+
+    if (!['open', 'closed'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const ticket = await Ticket.findByIdAndUpdate(ticketId, { status }, { new: true });
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: 'Ticket not found' });
+    }
+
+    res.status(200).json({ success: true, ticket });
+  } catch (error) {
+    next(error);
+  }
+};
+

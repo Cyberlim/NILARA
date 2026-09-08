@@ -138,7 +138,18 @@ const fs = require('fs');
 
 const completeOnboarding = async (req, res, next) => {
   try {
-    const { aadharNumber, drivingLicenseNumber, vehicleType, vehicleNumber } = req.body;
+    const { 
+      aadharNumber, 
+      drivingLicenseNumber, 
+      vehicleType, 
+      vehicleNumber,
+      accountHolderName,
+      bankName,
+      accountNumber,
+      ifscCode,
+      accountType,
+      upiId
+    } = req.body;
     
     let aadharImageUrl = null;
     let profileImageUrl = null;
@@ -176,6 +187,13 @@ const completeOnboarding = async (req, res, next) => {
       fs.unlinkSync(req.files['vehicleBackImage'][0].path);
     }
 
+    let rcImageUrl = null;
+    if (req.files && req.files['rcImage']) {
+      const result = await cloudinary.uploader.upload(req.files['rcImage'][0].path, { folder: 'kyc' });
+      rcImageUrl = result.secure_url;
+      fs.unlinkSync(req.files['rcImage'][0].path);
+    }
+
     const User = require('../models/User');
     const user = await User.findById(req.auth.userId);
     
@@ -187,16 +205,32 @@ const completeOnboarding = async (req, res, next) => {
       user.photoUrl = profileImageUrl;
     }
     
+    const existingBankDetails = user.deliveryDetails?.bankDetails || {};
+    const bankDetails = (accountNumber || ifscCode || bankName || upiId) ? {
+      accountHolderName: accountHolderName || user.displayName || '',
+      bankName: bankName || '',
+      accountNumber: accountNumber || '',
+      ifscCode: ifscCode ? ifscCode.trim().toUpperCase() : '',
+      accountType: accountType || 'Savings Account',
+      upiId: upiId ? upiId.trim().toLowerCase() : '',
+      payoutFrequency: 'Daily',
+      payoutMode: 'Bank Transfer'
+    } : existingBankDetails;
+
     user.deliveryDetails = {
+      ...(user.deliveryDetails || {}),
       aadharNumber,
       aadharImage: aadharImageUrl,
-      drivingLicenseNumber,
+      drivingLicenseNumber: drivingLicenseNumber ? drivingLicenseNumber.trim().toUpperCase() : drivingLicenseNumber,
       drivingLicenseImage: drivingLicenseImageUrl,
       vehicleType,
-      vehicleNumber,
+      vehicleNumber: vehicleNumber ? vehicleNumber.trim().toUpperCase() : vehicleNumber,
       vehicleFrontImage: vehicleFrontImageUrl,
-      vehicleBackImage: vehicleBackImageUrl
+      vehicleBackImage: vehicleBackImageUrl,
+      rcImage: rcImageUrl || user.deliveryDetails?.rcImage,
+      bankDetails
     };
+    user.markModified('deliveryDetails');
     user.onboardingComplete = true;
     
     await user.save();
@@ -206,9 +240,164 @@ const completeOnboarding = async (req, res, next) => {
     next(error);
   }
 };
+const updateProfile = async (req, res, next) => {
+  try {
+    const { displayName, email, dob, address, emergencyContact, vehicleType, vehicleNumber, drivingLicenseNumber, bankDetails, preferences } = req.body;
+    const userId = req.auth?.userId || req.user?.id;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    if (displayName !== undefined) user.displayName = displayName;
+    if (email !== undefined) user.email = email;
+    if (dob !== undefined) user.dob = dob;
+    if (address !== undefined) user.address = address;
+    if (emergencyContact !== undefined) user.emergencyContact = emergencyContact;
+    if (vehicleType !== undefined || vehicleNumber !== undefined || drivingLicenseNumber !== undefined) {
+      if (!user.deliveryDetails) user.deliveryDetails = {};
+      if (vehicleType !== undefined) user.deliveryDetails.vehicleType = vehicleType;
+      if (vehicleNumber !== undefined) user.deliveryDetails.vehicleNumber = vehicleNumber.trim().toUpperCase();
+      if (drivingLicenseNumber !== undefined) user.deliveryDetails.drivingLicenseNumber = drivingLicenseNumber.trim().toUpperCase();
+      if (user.deliveryDetails.model) delete user.deliveryDetails.model;
+      if (user.deliveryDetails.vehicleModel) delete user.deliveryDetails.vehicleModel;
+      user.markModified('deliveryDetails');
+    }
+    if (bankDetails !== undefined) {
+      if (!user.deliveryDetails) user.deliveryDetails = {};
+      user.deliveryDetails.bankDetails = {
+        ...(user.deliveryDetails.bankDetails || {}),
+        ...bankDetails
+      };
+      user.markModified('deliveryDetails');
+    }
+    if (preferences !== undefined) {
+      if (!user.deliveryDetails) user.deliveryDetails = {};
+      user.deliveryDetails.preferences = {
+        ...(user.deliveryDetails.preferences || {}),
+        ...preferences
+      };
+      user.markModified('deliveryDetails');
+    }
+    
+    await user.save();
+    
+    res.status(200).json({ success: true, message: 'Profile updated successfully', data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const uploadRC = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No RC image file provided' });
+    }
+
+    const result = await cloudinary.uploader.upload(req.file.path, { folder: 'kyc' });
+    const rcImageUrl = result.secure_url;
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    const userId = req.auth?.userId || req.user?.id;
+    const User = require('../models/User');
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (!user.deliveryDetails) user.deliveryDetails = {};
+    user.deliveryDetails.rcImage = rcImageUrl;
+    user.markModified('deliveryDetails');
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'RC document uploaded successfully',
+      data: { rcImage: rcImageUrl }
+    });
+  } catch (error) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    next(error);
+  }
+};
+
+const getPreferences = async (req, res, next) => {
+  try {
+    const userId = req.auth?.userId || req.user?.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const defaultPrefs = {
+      navigationApp: 'OpenStreetMap',
+      autoCenterMap: true,
+      voiceRoutePrompts: true,
+      highContrastMap: false,
+      offlineMapCaching: true,
+      language: 'English',
+      alertTone: 'Loud Ring',
+      soundVolume: 85,
+      vibrateOnAlert: true
+    };
+
+    const currentPrefs = user.deliveryDetails?.preferences;
+    const preferences = {
+      ...defaultPrefs,
+      ...(currentPrefs && typeof currentPrefs.toObject === 'function' ? currentPrefs.toObject() : currentPrefs || {})
+    };
+
+    res.status(200).json({
+      success: true,
+      data: preferences
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updatePreferences = async (req, res, next) => {
+  try {
+    const userId = req.auth?.userId || req.user?.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (!user.deliveryDetails) user.deliveryDetails = {};
+    const existingPrefs = user.deliveryDetails.preferences && typeof user.deliveryDetails.preferences.toObject === 'function'
+      ? user.deliveryDetails.preferences.toObject()
+      : (user.deliveryDetails.preferences || {});
+
+    user.deliveryDetails.preferences = {
+      ...existingPrefs,
+      ...req.body
+    };
+    user.markModified('deliveryDetails');
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Preferences updated successfully',
+      data: user.deliveryDetails.preferences
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+  updateProfile,
   completeOnboarding,
+  uploadRC,
   getAvailableOrders,
   acceptOrder,
-  updateDeliveryStatus
+  updateDeliveryStatus,
+  getPreferences,
+  updatePreferences
 };

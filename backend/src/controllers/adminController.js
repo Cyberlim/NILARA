@@ -543,7 +543,7 @@ const markDeliveryDelivered = async (req, res, next) => {
 
 const addDeliveryPartner = async (req, res, next) => {
   try {
-    const { name, email, phone, password } = req.body;
+    const { name, email, phone, password, assignedStore, assignedHub, darkStore } = req.body;
 
     // Check if user exists in MongoDB first
     const existingUser = await User.findOne({ email });
@@ -568,7 +568,8 @@ const addDeliveryPartner = async (req, res, next) => {
       disabled: false,
     });
 
-    // Create user in MongoDB
+    // Create user in MongoDB with automatic joinedDate
+    const now = new Date();
     const newUser = await User.create({
       firebaseUid: firebaseUser.uid,
       email,
@@ -576,6 +577,11 @@ const addDeliveryPartner = async (req, res, next) => {
       displayName: name,
       role: 'delivery',
       isActive: true,
+      deliveryDetails: {
+        assignedStore: assignedStore || assignedHub || darkStore || null,
+        assignedHub: assignedHub || assignedStore || darkStore || null,
+        joinedDate: now.toISOString()
+      }
     });
 
     res.status(201).json({

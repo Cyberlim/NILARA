@@ -49,6 +49,20 @@ const syncUser = async (req, res, next) => {
       });
     }
 
+    // Capitalize vehicle and license numbers in deliveryDetails
+    let sanitizedDeliveryDetails = user.deliveryDetails;
+    if (sanitizedDeliveryDetails) {
+      sanitizedDeliveryDetails = typeof sanitizedDeliveryDetails.toObject === 'function' 
+        ? sanitizedDeliveryDetails.toObject() 
+        : { ...sanitizedDeliveryDetails };
+      if (sanitizedDeliveryDetails.vehicleNumber) {
+        sanitizedDeliveryDetails.vehicleNumber = sanitizedDeliveryDetails.vehicleNumber.toString().toUpperCase();
+      }
+      if (sanitizedDeliveryDetails.drivingLicenseNumber) {
+        sanitizedDeliveryDetails.drivingLicenseNumber = sanitizedDeliveryDetails.drivingLicenseNumber.toString().toUpperCase();
+      }
+    }
+
     // Sanitize user before returning
     const safeUser = {
       id: user._id,
@@ -59,6 +73,10 @@ const syncUser = async (req, res, next) => {
       photoUrl: user.photoUrl,
       isActive: user.isActive,
       onboardingComplete: user.onboardingComplete || false,
+      deliveryDetails: sanitizedDeliveryDetails,
+      dob: user.dob,
+      address: user.address,
+      emergencyContact: user.emergencyContact,
       createdAt: user.createdAt
     };
 

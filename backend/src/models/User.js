@@ -41,6 +41,18 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  dob: {
+    type: String,
+    default: ""
+  },
+  address: {
+    type: String,
+    default: ""
+  },
+  emergencyContact: {
+    type: String,
+    default: ""
+  },
   onboardingComplete: {
     type: Boolean,
     default: false
@@ -58,7 +70,33 @@ const userSchema = new mongoose.Schema({
     vehicleType: { type: String },
     vehicleNumber: { type: String },
     vehicleFrontImage: { type: String },
-    vehicleBackImage: { type: String }
+    vehicleBackImage: { type: String },
+    rcImage: { type: String },
+    assignedHub: { type: String },
+    assignedStore: { type: String },
+    darkStore: { type: String },
+    joinedDate: { type: String },
+    bankDetails: {
+      accountHolderName: { type: String },
+      accountNumber: { type: String },
+      ifscCode: { type: String },
+      bankName: { type: String },
+      accountType: { type: String, default: 'Savings' },
+      upiId: { type: String },
+      payoutFrequency: { type: String, default: 'Daily' },
+      payoutMode: { type: String, default: 'Bank Transfer' }
+    },
+    preferences: {
+      navigationApp: { type: String, default: 'OpenStreetMap' },
+      autoCenterMap: { type: Boolean, default: true },
+      voiceRoutePrompts: { type: Boolean, default: true },
+      highContrastMap: { type: Boolean, default: false },
+      offlineMapCaching: { type: Boolean, default: true },
+      language: { type: String, default: 'English' },
+      alertTone: { type: String, default: 'Loud Ring' },
+      soundVolume: { type: Number, default: 85 },
+      vibrateOnAlert: { type: Boolean, default: true }
+    }
   },
   fcmTokens: [{
     type: String,

@@ -60,6 +60,21 @@ const settingsSchema = new mongoose.Schema({
     question: { type: String, required: true },
     answer: { type: String, required: true }
   }],
+  deliverySupport: {
+    bannerTitle: { type: String, default: 'Partner Support Desk' },
+    bannerSubtitle: { type: String, default: '24x7 Dedicated assistance for delivery issues, payouts, app bugs, and emergency rider safety.' },
+    statusText: { type: String, default: 'Support Live' },
+    isLive: { type: Boolean, default: true },
+    helplineNumber: { type: String, default: '1800-102-9999' },
+    helplineTiming: { type: String, default: 'Toll Free 24x7' },
+    supportEmail: { type: String, default: 'partner-support@nilara.com' },
+    emergencyNumber: { type: String, default: '1800-102-9999' },
+    emergencyDescription: { type: String, default: 'Immediate on-road safety assistance' },
+    faqs: [{
+      question: { type: String, required: true },
+      answer: { type: String, required: true }
+    }]
+  },
   carouselBanners: {
     type: [{
       img: { type: String, required: true },

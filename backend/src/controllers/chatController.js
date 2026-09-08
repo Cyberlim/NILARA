@@ -67,7 +67,7 @@ exports.getRecentChats = async (req, res, next) => {
     // Populate user info for each chat
     const populatedChats = await Promise.all(
       recentMessages.map(async (chat) => {
-        const user = await User.findById(chat._id).select('displayName email phone photoUrl');
+        const user = await User.findById(chat._id).select('displayName email phone photoUrl role');
         return {
           userId: chat._id,
           user,
