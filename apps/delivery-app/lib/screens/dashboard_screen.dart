@@ -6,7 +6,10 @@ import 'profile_tab.dart';
 import 'orders_tab.dart';
 import 'notifications_screen.dart';
 import 'incentives_screen.dart';
+import 'help_support_screen.dart';
+import 'settings_preferences_screen.dart';
 import 'login_screen.dart';
+import '../services/user_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -176,53 +179,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: const CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Color(0xFFE8F5E9),
-                        child: Icon(Icons.person, size: 36, color: Color(0xFF1E9C1C)),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Rahul Sharma",
-                            style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ValueListenableBuilder<UserProfile?>(
+                  valueListenable: UserService().currentUser,
+                  builder: (context, user, _) {
+                    final hasPhoto = user?.photoUrl != null && user!.photoUrl!.isNotEmpty;
+                    final shortId = (user != null && user.id.length > 6)
+                        ? user.id.substring(user.id.length - 6).toUpperCase()
+                        : (user?.id ?? "000000");
+                    return Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                          child: CircleAvatar(
+                            radius: 28,
+                            backgroundColor: const Color(0xFFE8F5E9),
+                            backgroundImage: hasPhoto ? NetworkImage(user.photoUrl!) : null,
+                            child: hasPhoto ? null : const Icon(Icons.person, size: 36, color: Color(0xFF1E9C1C)),
                           ),
-                          Text(
-                            "Partner ID: #BLK-89042",
-                            style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.star, color: Colors.amber, size: 14),
-                                const SizedBox(width: 4),
-                                Text(
-                                  "4.9 Rating (520+ Orders)",
-                                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user?.name ?? "Delivery Partner",
+                                style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                "Partner ID: #$shortId",
+                                style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                              ],
-                            ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.star, color: Colors.amber, size: 14),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      "4.9 Rating (520+ Orders)",
+                                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 Container(
@@ -294,25 +307,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 const Divider(height: 24),
                 _buildDrawerSectionTitle("PARTNER TOOLS & HUB"),
-                _buildDrawerItem(
-                  icon: Icons.storefront_outlined,
-                  title: "Dark Store Hub",
-                  subtitle: "Jubilee Hills Hub #104",
-                  onTap: () => _showDialogInfo(context, "Dark Store Hub", "Assigned Hub: Jubilee Hills Hub #104\nAddress: Plot 55, Road No. 36, Jubilee Hills, Hyderabad.\nManager Contact: +91 98765 12345"),
+                ValueListenableBuilder<UserProfile?>(
+                  valueListenable: UserService().currentUser,
+                  builder: (context, user, _) {
+                    final deliveryDetails = user?.deliveryDetails;
+                    final assignedStore = (deliveryDetails?['assignedStore'] ??
+                            deliveryDetails?['assignedHub'] ??
+                            deliveryDetails?['darkStore'] ??
+                            deliveryDetails?['hubName'])
+                        ?.toString()
+                        .trim();
+                    if (assignedStore == null || assignedStore.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    final hubAddress = deliveryDetails?['hubAddress'] ?? 'Contact admin for hub address';
+                    final managerContact = deliveryDetails?['hubManagerContact'] ?? 'Contact support';
+                    return _buildDrawerItem(
+                      icon: Icons.storefront_outlined,
+                      title: "Dark Store Hub",
+                      subtitle: assignedStore,
+                      onTap: () => _showDialogInfo(
+                        context,
+                        "Dark Store Hub",
+                        "Assigned Hub: $assignedStore\nAddress: $hubAddress\nManager Contact: $managerContact",
+                      ),
+                    );
+                  },
                 ),
                 _buildDrawerItem(
                   icon: Icons.ev_station_outlined,
                   title: "EV Charging Stations",
                   subtitle: "Nearest battery swap points",
                   onTap: () => _showDialogInfo(context, "EV Charging Stations", "1. Jubilee Hills Hub Station (0.5 km)\n2. Madhapur Swap Point (1.8 km)\n3. Gachibowli Fast Charger (3.2 km)"),
-                ),
-                _buildDrawerItem(
-                  icon: Icons.description_outlined,
-                  title: "Documents & Insurance",
-                  subtitle: "Driving License, RC, Insurance Verified",
-                  badgeText: "Verified",
-                  badgeColor: const Color(0xFF1E9C1C),
-                  onTap: () => _showDialogInfo(context, "Partner Documents", "✔ Driving License: Active\n✔ Vehicle RC: Verified\n✔ Medical & Health Insurance: Active up to ₹5,000,000"),
                 ),
 
                 const Divider(height: 24),
@@ -328,13 +354,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: Icons.support_agent_outlined,
                   title: "Partner Support Chat",
                   subtitle: "Raise ticket or talk to executive",
-                  onTap: () => _showDialogInfo(context, "Partner Support", "Support Desk is Live.\nAverage response time: < 2 mins.\nEmail: partner-support@blinkit.com"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const HelpSupportScreen()),
+                    );
+                  },
                 ),
                 _buildDrawerItem(
                   icon: Icons.settings_outlined,
                   title: "App Settings",
                   subtitle: "Navigation maps, language & alert tones",
-                  onTap: () => _showDialogInfo(context, "Settings", "Default Navigation: Google Maps\nLanguage: English\nAlert Tone: Loud Ring\nOrder Auto Accept: OFF"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SettingsPreferencesScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

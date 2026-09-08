@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Download, Plus } from "lucide-react";
 import CustomersKPIs from "@/components/customers/CustomersKPIs";
 import CustomersTable from "@/components/customers/CustomersTable";
@@ -15,11 +15,14 @@ export default function CustomersPage() {
 
   const [localItems, setLocalItems] = useState([]);
 
+  const { token } = useAuth();
+
   useEffect(() => {
+    if (!token) return;
+    
     // Fetch real customers from Node.js backend
-    fetch("http://localhost:5000/api/v1/admin/customers", {
-      // TODO: Pass actual Firebase JWT token here once Admin Auth is built
-      // headers: { 'Authorization': Bearer $token }
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/admin/customers`, {
+      headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(res => res.json())
     .then(data => {
@@ -28,7 +31,7 @@ export default function CustomersPage() {
       }
     })
     .catch(err => console.error("Failed to fetch customers", err));
-  }, []);
+  }, [token]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState(null);
 

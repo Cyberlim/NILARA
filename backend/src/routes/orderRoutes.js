@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { checkout, getMyOrders, getOrderById, mockPayOrder } = require('../controllers/orderController');
+const { checkout, getMyOrders, getOrderById, mockPayOrder, deleteOrder } = require('../controllers/orderController');
 const { requireAuth } = require('../middlewares/authMiddleware');
 const { validate } = require('../middlewares/validateMiddleware');
 const { checkoutSchema } = require('../validators/orderValidators');
@@ -17,5 +17,6 @@ router.post('/checkout', validate({ body: checkoutSchema }), checkout);
 router.get('/me', validate({ query: paginationQuerySchema }), getMyOrders);
 router.get('/me/:id', validate({ params: objectIdParamSchema }), getOrderById);
 router.post('/:id/mock-pay', validate({ params: objectIdParamSchema }), mockPayOrder);
+router.delete('/me/:id', validate({ params: objectIdParamSchema }), deleteOrder);
 
 module.exports = router;

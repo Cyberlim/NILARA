@@ -1,39 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/user_service.dart';
 import 'profile_information_screen.dart';
 import 'vehicle_information_screen.dart';
+import 'bank_details_screen.dart';
+import 'help_support_screen.dart';
+import 'settings_preferences_screen.dart';
 import 'login_screen.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
 
+  String _formatJoinedDate(UserProfile? user) {
+    if (user == null) return "";
+    DateTime? dt;
+    final deliveryDetails = user.deliveryDetails;
+    if (deliveryDetails != null &&
+        deliveryDetails['joinedDate'] != null &&
+        deliveryDetails['joinedDate'].toString().trim().isNotEmpty) {
+      dt = DateTime.tryParse(deliveryDetails['joinedDate'].toString().trim());
+    }
+    if (dt == null && user.createdAt != null && user.createdAt!.isNotEmpty) {
+      dt = DateTime.tryParse(user.createdAt!);
+    }
+    if (dt != null) {
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return "Joined ${dt.day} ${months[dt.month - 1]} ${dt.year}";
+    }
+    return "";
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          "Profile",
-          style: GoogleFonts.outfit(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 24),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined, color: Color(0xFF1E9C1C)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileInformationScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 16),
+              child: Text(
+                "Profile",
+                style: GoogleFonts.outfit(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                ),
+              ),
+            ),
             // Avatar & Info Header Card
             GestureDetector(
               onTap: () {
@@ -54,31 +70,55 @@ class ProfileTab extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(color: Color(0xFF1E9C1C), shape: BoxShape.circle),
-                      child: const CircleAvatar(
-                        radius: 32,
-                        backgroundColor: Color(0xFFE8F5E9),
-                        child: Icon(Icons.person, size: 40, color: Color(0xFF1E9C1C)),
-                      ),
+                    ValueListenableBuilder<UserProfile?>(
+                      valueListenable: UserService().currentUser,
+                      builder: (context, user, _) {
+                        final hasPhoto = user?.photoUrl != null && user!.photoUrl!.isNotEmpty;
+                        return Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(color: Color(0xFF1E9C1C), shape: BoxShape.circle),
+                          child: CircleAvatar(
+                            radius: 32,
+                            backgroundColor: const Color(0xFFE8F5E9),
+                            backgroundImage: hasPhoto ? NetworkImage(user.photoUrl!) : null,
+                            child: hasPhoto ? null : const Icon(Icons.person, size: 40, color: Color(0xFF1E9C1C)),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Text("Rahul Sharma", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                              const SizedBox(width: 6),
-                              const Icon(Icons.verified, color: Color(0xFF1E9C1C), size: 16),
-                            ],
+                          ValueListenableBuilder(
+                            valueListenable: UserService().currentUser,
+                            builder: (context, user, _) {
+                              final shortId = (user != null && user.id.length > 6)
+                                  ? user.id.substring(user.id.length - 6).toUpperCase()
+                                  : (user?.id ?? '000000');
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(user?.name ?? "", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                      const SizedBox(width: 6),
+                                      const Icon(Icons.verified, color: Color(0xFF1E9C1C), size: 16),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text("Partner ID: #$shortId", style: GoogleFonts.outfit(fontSize: 12, color: Colors.black54)),
+                                  const SizedBox(height: 2),
+                                  Text(user?.phone ?? "", style: GoogleFonts.outfit(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w500)),
+                                  if (_formatJoinedDate(user).isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(_formatJoinedDate(user), style: GoogleFonts.outfit(fontSize: 11, color: const Color(0xFF1E9C1C), fontWeight: FontWeight.w600)),
+                                  ],
+                                ],
+                              );
+                            }
                           ),
-                          const SizedBox(height: 2),
-                          Text("Partner ID: #BLK-89042", style: GoogleFonts.outfit(fontSize: 12, color: Colors.black54)),
-                          const SizedBox(height: 2),
-                          Text("+91 98765 43210", style: GoogleFonts.outfit(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w500)),
                         ],
                       ),
                     ),
@@ -146,9 +186,7 @@ class ProfileTab extends StatelessWidget {
             _buildMenuItem(
               icon: Icons.directions_car_outlined,
               title: "Vehicle Information",
-              subtitle: "EV model, registration & RC status",
-              badgeText: "EV Active",
-              badgeColor: const Color(0xFF1E9C1C),
+              subtitle: "Vehicle category, registration & RC status",
               onTap: () {
                 Navigator.push(
                   context,
@@ -157,30 +195,39 @@ class ProfileTab extends StatelessWidget {
               },
             ),
             _buildMenuItem(
-              icon: Icons.description_outlined,
-              title: "Documents & Insurance",
-              subtitle: "DL, RC, Health & Bike Insurance",
-              badgeText: "Verified",
-              badgeColor: Colors.blue,
-              onTap: () => _showDialogInfo(context, "Documents & Insurance", "✔ Driving License: Active\n✔ Vehicle RC: Verified\n✔ Medical & Health Insurance: Active up to ₹5,000,000"),
-            ),
-            _buildMenuItem(
               icon: Icons.account_balance_outlined,
               title: "Bank & Payout Details",
               subtitle: "Linked bank accounts & UPI IDs",
-              onTap: () => _showDialogInfo(context, "Bank Details", "Primary Account: HDFC Bank (•••• 4321)\nSecondary: ICICI Bank (•••• 8765)\nUPI VPA: rahul@okaxis"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const BankDetailsScreen()),
+                );
+              },
             ),
             _buildMenuItem(
               icon: Icons.help_outline,
               title: "Help & Delivery Support",
               subtitle: "24x7 helpline & partner FAQs",
-              onTap: () => _showDialogInfo(context, "Partner Support", "Support Desk Status: Live 🟢\nHelpline: 1800-102-9999\nEmail: partner-support@blinkit.com"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HelpSupportScreen()),
+                );
+              },
             ),
             _buildMenuItem(
               icon: Icons.settings_outlined,
               title: "Settings & Preferences",
-              subtitle: "Navigation maps, language & alert tones",
-              onTap: () => _showDialogInfo(context, "Settings", "Default Navigation: Google Maps\nLanguage: English\nAlert Tone: Loud Ring\nOrder Auto Accept: OFF"),
+              subtitle: "Navigation maps & order alert tones",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsPreferencesScreen(),
+                  ),
+                );
+              },
             ),
             _buildMenuItem(
               icon: Icons.logout_outlined,
@@ -256,23 +303,6 @@ class ProfileTab extends StatelessWidget {
         ),
         trailing: isLogout ? null : const Icon(Icons.chevron_right, color: Colors.black45, size: 20),
         onTap: onTap,
-      ),
-    );
-  }
-
-  void _showDialogInfo(BuildContext context, String title, String content) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-        content: Text(content, style: GoogleFonts.outfit(fontSize: 14, height: 1.5)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Close", style: GoogleFonts.outfit(color: const Color(0xFF1E9C1C), fontWeight: FontWeight.bold)),
-          ),
-        ],
       ),
     );
   }

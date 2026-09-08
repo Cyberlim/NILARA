@@ -41,6 +41,25 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  onboardingComplete: {
+    type: Boolean,
+    default: false
+  },
+  walletBalance: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  deliveryDetails: {
+    aadharNumber: { type: String },
+    aadharImage: { type: String },
+    drivingLicenseNumber: { type: String },
+    drivingLicenseImage: { type: String },
+    vehicleType: { type: String },
+    vehicleNumber: { type: String },
+    vehicleFrontImage: { type: String },
+    vehicleBackImage: { type: String }
+  },
   fcmTokens: [{
     type: String,
     trim: true

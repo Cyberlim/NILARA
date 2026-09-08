@@ -1,4 +1,6 @@
 const Order = require('../models/Order');
+const Transaction = require('../models/Transaction');
+const User = require('../models/User');
 
 const getAvailableOrders = async (req, res, next) => {
   try {
@@ -93,7 +95,26 @@ const updateDeliveryStatus = async (req, res, next) => {
     
     order.status = status;
     if (status === 'out_for_delivery') order.outForDeliveryAt = new Date();
-    if (status === 'delivered') order.deliveredAt = new Date();
+    if (status === 'delivered') {
+      order.deliveredAt = new Date();
+      
+      // Calculate earnings in Rupees (fallback to Rs 20 if 0)
+      const feeRupees = order.deliveryFeePaise > 0 ? (order.deliveryFeePaise / 100) : 20;
+      
+      const user = await User.findById(partnerId);
+      if (user) {
+        user.walletBalance = (user.walletBalance || 0) + feeRupees;
+        await user.save();
+        
+        await Transaction.create({
+          user: partnerId,
+          type: 'credit',
+          amount: feeRupees,
+          order: orderId,
+          description: `Earning for Order #${order.orderNumber}`
+        });
+      }
+    }
     
     await order.save();
     
@@ -110,7 +131,83 @@ const updateDeliveryStatus = async (req, res, next) => {
   }
 };
 
+
+
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
+
+const completeOnboarding = async (req, res, next) => {
+  try {
+    const { aadharNumber, drivingLicenseNumber, vehicleType, vehicleNumber } = req.body;
+    
+    let aadharImageUrl = null;
+    let profileImageUrl = null;
+    let drivingLicenseImageUrl = null;
+    let vehicleFrontImageUrl = null;
+    let vehicleBackImageUrl = null;
+    
+    if (req.files && req.files['aadharImage']) {
+      const result = await cloudinary.uploader.upload(req.files['aadharImage'][0].path, { folder: 'kyc' });
+      aadharImageUrl = result.secure_url;
+      fs.unlinkSync(req.files['aadharImage'][0].path);
+    }
+    
+    if (req.files && req.files['profileImage']) {
+      const result = await cloudinary.uploader.upload(req.files['profileImage'][0].path, { folder: 'kyc' });
+      profileImageUrl = result.secure_url;
+      fs.unlinkSync(req.files['profileImage'][0].path);
+    }
+    
+    if (req.files && req.files['drivingLicenseImage']) {
+      const result = await cloudinary.uploader.upload(req.files['drivingLicenseImage'][0].path, { folder: 'kyc' });
+      drivingLicenseImageUrl = result.secure_url;
+      fs.unlinkSync(req.files['drivingLicenseImage'][0].path);
+    }
+    
+    if (req.files && req.files['vehicleFrontImage']) {
+      const result = await cloudinary.uploader.upload(req.files['vehicleFrontImage'][0].path, { folder: 'kyc' });
+      vehicleFrontImageUrl = result.secure_url;
+      fs.unlinkSync(req.files['vehicleFrontImage'][0].path);
+    }
+    
+    if (req.files && req.files['vehicleBackImage']) {
+      const result = await cloudinary.uploader.upload(req.files['vehicleBackImage'][0].path, { folder: 'kyc' });
+      vehicleBackImageUrl = result.secure_url;
+      fs.unlinkSync(req.files['vehicleBackImage'][0].path);
+    }
+
+    const User = require('../models/User');
+    const user = await User.findById(req.auth.userId);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    if (profileImageUrl) {
+      user.photoUrl = profileImageUrl;
+    }
+    
+    user.deliveryDetails = {
+      aadharNumber,
+      aadharImage: aadharImageUrl,
+      drivingLicenseNumber,
+      drivingLicenseImage: drivingLicenseImageUrl,
+      vehicleType,
+      vehicleNumber,
+      vehicleFrontImage: vehicleFrontImageUrl,
+      vehicleBackImage: vehicleBackImageUrl
+    };
+    user.onboardingComplete = true;
+    
+    await user.save();
+    
+    res.status(200).json({ success: true, message: 'Onboarding completed successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
 module.exports = {
+  completeOnboarding,
   getAvailableOrders,
   acceptOrder,
   updateDeliveryStatus

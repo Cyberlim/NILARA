@@ -1,5 +1,7 @@
 const express = require('express');
 const Order = require('../models/Order');
+const User = require('../models/User');
+const { auth } = require('../config/firebase');
 const Product = require('../models/Product');
 const BulkOrder = require('../models/BulkOrder');
 const Subscription = require('../models/Subscription');
@@ -75,6 +77,7 @@ const updateOrderStatus = async (req, res, next) => {
     // Trigger Socket.IO event
     req.app.get('io').to(`user_${order.user}`).emit('order_status_updated', { orderId: order._id, status });
     req.app.get('io').to(`admin_room`).emit('order_status_updated', { orderId: order._id, status });
+    req.app.get('io').to(`delivery_room`).emit('order_status_updated', { orderId: order._id, status });
     
     // Send FCM Push Notification
     if (messaging) {
@@ -109,7 +112,6 @@ const updateOrderStatus = async (req, res, next) => {
   }
 };
 
-const User = require('../models/User');
 
 const getAllCustomers = async (req, res, next) => {
   try {
@@ -538,7 +540,91 @@ const markDeliveryDelivered = async (req, res, next) => {
   }
 };
 
+
+const addDeliveryPartner = async (req, res, next) => {
+  try {
+    const { name, email, phone, password } = req.body;
+
+    // Check if user exists in MongoDB first
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      const err = new Error('User already exists in database');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!auth) {
+      const err = new Error('Firebase Admin Auth is not initialized');
+      err.statusCode = 500;
+      throw err;
+    }
+
+    // Create user in Firebase Auth
+    const firebaseUser = await auth.createUser({
+      email,
+      emailVerified: false,
+      password,
+      displayName: name,
+      disabled: false,
+    });
+
+    // Create user in MongoDB
+    const newUser = await User.create({
+      firebaseUid: firebaseUser.uid,
+      email,
+      phone,
+      displayName: name,
+      role: 'delivery',
+      isActive: true,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: newUser._id,
+        name: newUser.displayName,
+        email: newUser.email,
+        role: newUser.role
+      },
+      message: 'Delivery partner created successfully'
+    });
+  } catch (error) {
+    if (error.code === 'auth/email-already-exists') {
+      error.statusCode = 400;
+      error.message = 'The email address is already in use by another account.';
+    }
+    next(error);
+  }
+};
+
+
+const getAllDeliveryPartners = async (req, res, next) => {
+  try {
+    const partners = await User.find({ role: 'delivery' })
+      .select('displayName email phone isActive photoUrl createdAt')
+      .sort({ createdAt: -1 });
+
+    const formattedPartners = partners.map(p => ({
+      id: p._id.toString(),
+      name: p.displayName || 'Unknown Rider',
+      email: p.email || 'N/A',
+      phone: p.phone || 'N/A',
+      avatar: p.photoUrl,
+      status: p.isActive ? 'Active' : 'Suspended',
+      statusColor: p.isActive ? 'teal' : 'red',
+      joinDate: p.createdAt.toISOString().split('T')[0],
+      totalOrders: 0,
+      rating: 5.0,
+      currentStatus: 'Offline'
+    }));
+
+    res.status(200).json({ success: true, data: formattedPartners });
+  } catch (error) { next(error); }
+};
+
 module.exports = {
+  getAllDeliveryPartners,
+  addDeliveryPartner,
   getDashboardStats,
   getAllOrders,
   updateOrderStatus,

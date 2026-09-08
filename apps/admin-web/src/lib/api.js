@@ -18,10 +18,16 @@ export async function fetchWithAuth(endpoint, options = {}) {
     delete headers['Content-Type'];
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    console.error(`Fetch failed for URL: ${API_BASE}${endpoint}`, error);
+    throw error;
+  }
 
   const data = await response.json();
   

@@ -94,6 +94,7 @@ const orderSchema = new mongoose.Schema({
   customerNotes: { type: String, trim: true },
   cancellationReason: { type: String, trim: true },
   deliveryTimePref: { type: String, trim: true },
+  isHiddenByUser: { type: Boolean, default: false },
 
   placedAt: { type: Date },
   acceptedAt: { type: Date },

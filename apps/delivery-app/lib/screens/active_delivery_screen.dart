@@ -6,6 +6,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'order_delivered_screen.dart';
 import '../services/delivery_service.dart';
+import '../services/user_service.dart';
+import '../services/alert_audio_service.dart';
 
 
 class ActiveDeliveryScreen extends StatefulWidget {
@@ -19,6 +21,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
   final LatLng _storeLocation = const LatLng(28.6200, 77.3639); 
   final LatLng _customerLocation = const LatLng(28.5900, 77.4400); 
   List<LatLng> _routePoints = [];
+  final MapController _mapController = MapController();
 
   @override
   void initState() {
@@ -42,6 +45,22 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
       setState(() {
         _routePoints = [_storeLocation, _customerLocation];
       });
+    }
+
+    final prefs = UserService().currentUser.value?.deliveryDetails?['preferences'];
+    final bool voicePrompts = prefs == null || prefs['voiceRoutePrompts'] != false;
+    final bool autoCenter = prefs == null || prefs['autoCenterMap'] != false;
+
+    if (autoCenter) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          _mapController.move(_storeLocation, 14.0);
+        } catch (_) {}
+      });
+    }
+
+    if (voicePrompts) {
+      AlertAudioService().speak("Live delivery route loaded. Proceed towards destination.");
     }
   }
 
@@ -130,6 +149,12 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final prefs = UserService().currentUser.value?.deliveryDetails?['preferences'];
+    final bool isHighContrast = prefs != null && prefs['highContrastMap'] == true;
+    final String tileUrl = isHighContrast
+        ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+        : 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -142,28 +167,29 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
         title: Text("On the Way", style: GoogleFonts.outfit(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: Stack(
-        children: [
-          // MAP (Bottom Layer) - Beautiful White Theme
-          Positioned.fill(
-            child: FlutterMap(
-              options: MapOptions(
-                initialCenter: const LatLng(28.6050, 77.4019),
-                initialZoom: 13.0,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.cyberlim.delivery',
-                ),
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: _routePoints.isEmpty ? [_storeLocation, _customerLocation] : _routePoints,
-                      strokeWidth: 5.0,
-                      color: const Color(0xFF1E9C1C), // Cyberlim green route
+            children: [
+              // MAP (Bottom Layer)
+              Positioned.fill(
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: const LatLng(28.6050, 77.4019),
+                    initialZoom: 13.0,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: tileUrl,
+                      userAgentPackageName: 'com.cyberlim.delivery',
                     ),
-                  ],
-                ),
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _routePoints.isEmpty ? [_storeLocation, _customerLocation] : _routePoints,
+                          strokeWidth: 5.0,
+                          color: const Color(0xFF1E9C1C), // Cyberlim green route
+                        ),
+                      ],
+                    ),
                 MarkerLayer(
                   markers: [
                     Marker(
@@ -193,6 +219,35 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
               ],
             ),
           ),
+
+          // FLOATING RE-CENTER GPS BUTTON
+          Positioned(
+            bottom: 24,
+            right: 20,
+            child: FloatingActionButton.small(
+              heroTag: 'recenter_gps',
+              backgroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onPressed: () {
+                _mapController.move(_storeLocation, 14.5);
+                AlertAudioService().vibrate(durationMs: 150);
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      "Re-centered on your location",
+                      style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    backgroundColor: const Color(0xFF1E9C1C),
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              },
+              child: const Icon(Icons.my_location_rounded, color: Color(0xFF1E9C1C), size: 22),
+            ),
+          ),
           
           // TOP OVERLAY CARD
           Positioned(
@@ -204,7 +259,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, spreadRadius: 2)],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, spreadRadius: 2)],
                 border: Border.all(color: Colors.grey.shade200),
               ),
               child: Row(
@@ -223,6 +278,21 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
                   ),
                   Row(
                     children: [
+                      GestureDetector(
+                        onTap: () {
+                          AlertAudioService().speak("Deliver to Rohit Kumar at A-1204, Supertech Eco Village 1.");
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            border: Border.all(color: const Color(0xFF1E9C1C).withValues(alpha: 0.3)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.volume_up_rounded, color: Color(0xFF1E9C1C), size: 20),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -255,7 +325,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

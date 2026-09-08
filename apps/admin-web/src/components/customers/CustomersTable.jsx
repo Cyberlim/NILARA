@@ -85,7 +85,11 @@ export default function CustomersTable({ localItems, onRowClick, onEditClick, on
                 <td className="py-4 px-4 pl-6">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-xl flex-shrink-0 relative border border-slate-200">
-                      {item.avatar}
+                      {item.avatar && item.avatar.includes('/') ? (
+                        <img src={item.avatar} alt={item.name} className="w-full h-full object-cover rounded-full" />
+                      ) : (
+                        <span className="text-sm font-bold text-slate-500">{item.name.charAt(0).toUpperCase()}</span>
+                      )}
                       {item.isPremium && (
                         <div className="absolute -top-1 -right-1 bg-amber-400 text-white rounded-full p-0.5 border-2 border-white shadow-sm">
                           <Crown className="w-3 h-3" />
@@ -149,7 +153,11 @@ export default function CustomersTable({ localItems, onRowClick, onEditClick, on
           >
             <div className="flex items-start gap-3 mb-3 relative">
               <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-2xl flex-shrink-0 relative">
-                {item.avatar}
+                {item.avatar && item.avatar.includes('/') ? (
+                  <img src={item.avatar} alt={item.name} className="w-full h-full object-cover rounded-full" />
+                ) : (
+                  <span className="text-lg font-bold text-slate-500">{item.name.charAt(0).toUpperCase()}</span>
+                )}
                 {item.isPremium && (
                   <div className="absolute -top-1 -right-1 bg-amber-400 text-white rounded-full p-0.5 border-2 border-white shadow-sm">
                     <Crown className="w-3 h-3" />

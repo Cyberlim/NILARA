@@ -8,17 +8,19 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("admin_auth_token");
+    const savedToken = localStorage.getItem("admin_auth_token");
     const userData = localStorage.getItem("admin_user_data");
 
-    if (token && userData) {
+    if (savedToken && userData) {
       try {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
+        setToken(savedToken);
         setIsAuthenticated(true);
       } catch (e) {
         localStorage.removeItem("admin_auth_token");
@@ -29,10 +31,11 @@ export function AuthProvider({ children }) {
     setIsInitializing(false);
   }, []);
 
-  const login = (userData, token) => {
-    localStorage.setItem("admin_auth_token", token);
+  const login = (userData, tokenStr) => {
+    localStorage.setItem("admin_auth_token", tokenStr);
     localStorage.setItem("admin_user_data", JSON.stringify(userData));
     setUser(userData);
+    setToken(tokenStr);
     setIsAuthenticated(true);
     router.push("/");
   };
@@ -42,6 +45,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("admin_user_data");
     setIsAuthenticated(false);
     setUser(null);
+    setToken(null);
     router.push("/login");
   };
 
@@ -50,7 +54,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, token, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

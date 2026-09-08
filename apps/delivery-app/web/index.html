@@ -41,6 +41,154 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <script>
+    (function() {
+      let audioCtx = null;
+      let activeOscillators = [];
+      let activeTimers = [];
+
+      function getAudioContext() {
+        if (!audioCtx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            audioCtx = new AudioContext();
+          }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        return audioCtx;
+      }
+
+      function stopTone() {
+        activeTimers.forEach(t => clearTimeout(t));
+        activeTimers = [];
+        activeOscillators.forEach(node => {
+          try {
+            node.stop();
+            node.disconnect();
+          } catch(e) {}
+        });
+        activeOscillators = [];
+      }
+
+      function playTone(toneName, volume) {
+        stopTone();
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        const vol = typeof volume === 'number' ? Math.max(0.01, Math.min(1.0, volume)) : 0.85;
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(vol, ctx.currentTime);
+        masterGain.connect(ctx.destination);
+
+        const now = ctx.currentTime;
+
+        if (toneName === 'Loud Ring') {
+          // Urgent telephone ring (440Hz + 480Hz)
+          [440, 480].forEach(freq => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            for (let i = 0; i < 3; i++) {
+              const start = now + (i * 0.9);
+              gain.gain.setValueAtTime(0, start);
+              gain.gain.linearRampToValueAtTime(0.4, start + 0.05);
+              gain.gain.setValueAtTime(0.4, start + 0.5);
+              gain.gain.linearRampToValueAtTime(0, start + 0.55);
+            }
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start(now);
+            osc.stop(now + 2.8);
+            activeOscillators.push(osc);
+          });
+        } else if (toneName === 'Melodic Chime') {
+          // Harmonic pentatonic chime: C5, E5, G5, C6
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+
+            const noteStart = now + (idx * 0.22);
+            gain.gain.setValueAtTime(0, noteStart);
+            gain.gain.linearRampToValueAtTime(0.5, noteStart + 0.04);
+            gain.gain.exponentialRampToValueAtTime(0.001, noteStart + 1.2);
+
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start(noteStart);
+            osc.stop(noteStart + 1.25);
+            activeOscillators.push(osc);
+          });
+        } else if (toneName === 'Urgent Siren') {
+          // Pitch sweeping urgent siren
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          gain.gain.setValueAtTime(0.3, now);
+
+          for (let i = 0; i < 4; i++) {
+            const cycle = now + (i * 0.65);
+            osc.frequency.setValueAtTime(650, cycle);
+            osc.frequency.linearRampToValueAtTime(1300, cycle + 0.32);
+            osc.frequency.linearRampToValueAtTime(650, cycle + 0.65);
+          }
+          osc.connect(gain);
+          gain.connect(masterGain);
+          osc.start(now);
+          osc.stop(now + 2.6);
+          activeOscillators.push(osc);
+        } else {
+          // Beep Pulse: Fast double beeps (950Hz)
+          const beeps = [0, 0.18, 0.45, 0.63, 0.90, 1.08];
+          beeps.forEach(offset => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.value = 950;
+
+            const t = now + offset;
+            gain.gain.setValueAtTime(0.25, t);
+            gain.gain.setValueAtTime(0, t + 0.09);
+
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start(t);
+            osc.stop(t + 0.1);
+            activeOscillators.push(osc);
+          });
+        }
+      }
+
+      function vibrateDevice(ms) {
+        const duration = typeof ms === 'number' ? ms : 400;
+        if (navigator.vibrate) {
+          navigator.vibrate(duration);
+        }
+      }
+
+      function speakPrompt(text) {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+          window.speechSynthesis.speak(utterance);
+        }
+      }
+
+      window.deliveryAudio = {
+        playTone: playTone,
+        stopTone: stopTone,
+        vibrate: vibrateDevice,
+        speak: speakPrompt
+      };
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

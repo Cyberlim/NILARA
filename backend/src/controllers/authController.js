@@ -58,6 +58,7 @@ const syncUser = async (req, res, next) => {
       role: user.role,
       photoUrl: user.photoUrl,
       isActive: user.isActive,
+      onboardingComplete: user.onboardingComplete || false,
       createdAt: user.createdAt
     };
 

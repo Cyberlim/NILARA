@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'order_picked_up_screen.dart';
 import 'active_delivery_screen.dart';
 import '../services/delivery_service.dart';
 

@@ -3,6 +3,7 @@ import "./globals.css";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { AuthProvider } from "@/context/AuthContext";
 import AuthGuard from "@/components/layout/AuthGuard";
+import { Toaster } from 'react-hot-toast';
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -28,6 +29,7 @@ export default function RootLayout({ children }) {
             </AuthGuard>
             
           </SidebarProvider>
+          <Toaster position="top-right" />
         </AuthProvider>
       </body>
     </html>

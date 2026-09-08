@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
 
-const { getAllOrders, updateOrderStatus, getAllCustomers, toggleCustomerSuspension, getDashboardStats, getInventory, getPayments, getDeliverySchedule, markDeliveryDelivered } = require('../controllers/adminController');
+const { getAllOrders, updateOrderStatus, getAllCustomers, toggleCustomerSuspension, getDashboardStats, getInventory, getPayments, getDeliverySchedule, markDeliveryDelivered, addDeliveryPartner, getAllDeliveryPartners } = require('../controllers/adminController');
+const reviewController = require('../controllers/reviewController');
 const { requireAuth } = require('../middlewares/authMiddleware');
 const { requireRole } = require('../middlewares/rbacMiddleware');
 const { validate } = require('../middlewares/validateMiddleware');
 const { updateOrderStatusSchema } = require('../validators/orderValidators');
+const { createDeliveryPartnerSchema } = require('../validators/userValidators');
 const { objectIdParamSchema, paginationQuerySchema } = require('../validators/commonValidators');
 const { ADMIN_STRICT } = require('../middlewares/rateLimiter');
 
@@ -27,11 +29,19 @@ router.get('/customers', getAllCustomers);
 router.patch('/customers/:id/suspend', validate({ params: objectIdParamSchema }), toggleCustomerSuspension);
 router.patch('/orders/:id/status', validate({ params: objectIdParamSchema, body: updateOrderStatusSchema }), updateOrderStatus);
 
+// Reviews
+router.get('/reviews', reviewController.getAdminReviews);
+router.patch('/reviews/:id/status', reviewController.updateReviewStatus);
+
 // Inventory (derived from Products)
 router.get('/inventory', getInventory);
 
 // Payments (derived from Orders)
 router.get('/payments', getPayments);
+
+// Delivery Partners
+router.post('/delivery-partners', validate({ body: createDeliveryPartnerSchema }), addDeliveryPartner);
+router.get('/delivery-partners', getAllDeliveryPartners);
 
 module.exports = router;
 

@@ -38,11 +38,13 @@ dependencies:
   flutter_map: ^8.3.1
   latlong2: ^0.10.1
   http: ^1.6.0
+  http_parser: ^4.1.2
   firebase_core: ^4.14.0
   firebase_auth: ^6.6.1
   socket_io_client: ^3.1.6
   image_picker: ^1.2.3
   cloudinary_public: ^0.23.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

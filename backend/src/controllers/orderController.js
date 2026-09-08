@@ -115,6 +115,7 @@ const checkout = async (req, res, next) => {
 
     // Trigger Socket.IO event
     req.app.get('io').to(`admin_room`).emit('new_order', order[0]);
+    req.app.get('io').to(`delivery_room`).emit('new_order_available', order[0]);
 
     res.status(201).json({
       success: true,
@@ -208,9 +209,29 @@ const mockPayOrder = async (req, res, next) => {
   }
 };
 
+const deleteOrder = async (req, res, next) => {
+  try {
+    const orderId = req.params.id;
+    const order = await Order.findOne({ _id: orderId, user: req.auth.userId });
+    
+    if (!order) {
+      const err = new Error('Order not found or unauthorized');
+      err.statusCode = 404;
+      throw err;
+    }
+    
+    await Order.findByIdAndDelete(orderId);
+    
+    res.status(200).json({ success: true, message: 'Order completely deleted from database' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   checkout,
   getMyOrders,
   getOrderById,
-  mockPayOrder
+  mockPayOrder,
+  deleteOrder
 };

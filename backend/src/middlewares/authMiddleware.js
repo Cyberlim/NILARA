@@ -144,4 +144,24 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-module.exports = { requireAuth, optionalAuth };
+
+const requireOnboarding = async (req, res, next) => {
+  try {
+    const User = require('../models/User');
+    const user = await User.findById(req.auth.userId);
+    
+    if (!user || !user.onboardingComplete) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'You must complete the onboarding setup first.' },
+        requestId: req.requestId
+      });
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { requireAuth, optionalAuth, requireOnboarding };
+

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'user_service.dart';
+import 'alert_audio_service.dart';
 
 class DeliveryService {
   static final DeliveryService _instance = DeliveryService._internal();
@@ -38,9 +39,21 @@ class DeliveryService {
 
     _socket!.on('new_order_available', (data) {
       debugPrint('New order available: $data');
-      // A new order has been placed. We can prepend it to the list, or fetch all.
-      // Usually better to fetch all to ensure consistency and pagination state.
       fetchAvailableOrders();
+
+      // Play real alert tone and haptics based on rider preferences
+      final user = UserService().currentUser.value;
+      final prefs = user?.deliveryDetails?['preferences'];
+      final String tone = prefs?['alertTone'] ?? 'Loud Ring';
+      final double volume = (prefs?['soundVolume'] != null)
+          ? (prefs!['soundVolume'] as num).toDouble()
+          : 85.0;
+      final bool vibrate = prefs?['vibrateOnAlert'] ?? true;
+
+      AlertAudioService().playTone(tone, volume: volume);
+      if (vibrate) {
+        AlertAudioService().vibrate(durationMs: 700);
+      }
     });
 
     _socket!.on('order_status_updated', (data) {

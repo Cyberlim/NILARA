@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAuth } from "@/context/AuthContext";
 import ImageModal from "@/components/common/ImageModal";
+import { fetchWithAuth } from "@/lib/api";
 
 export default function Topbar() {
   const [searchQuery, setSearchQuery] = useState("");
