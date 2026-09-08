@@ -8,6 +8,23 @@ import { useAuth } from "@/context/AuthContext";
 import ImageModal from "@/components/common/ImageModal";
 import { fetchWithAuth } from "@/lib/api";
 
+const formatTimeAgo = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffSecs = Math.floor((now - date) / 1000);
+  
+  if (diffSecs < 60) return "Just now";
+  const diffMins = Math.floor(diffSecs / 60);
+  if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
 export default function Topbar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -17,11 +34,37 @@ export default function Topbar() {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [recentMessages, setRecentMessages] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const dropdownRef = useRef(null);
   const rightIconsRef = useRef(null);
   const router = useRouter();
   const { setIsOpen } = useSidebar();
   const { logout } = useAuth();
+
+  const fetchNotifications = async () => {
+    try {
+      const { fetchWithAuth } = await import("@/lib/api");
+      const data = await fetchWithAuth('/notifications');
+      if (data && data.success) {
+        setNotifications(data.notifications || []);
+        setNotificationUnreadCount(data.unreadCount || 0);
+      }
+    } catch (err) {
+      console.error("Failed to load notifications for topbar", err);
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    try {
+      const { fetchWithAuth } = await import("@/lib/api");
+      await fetchWithAuth('/notifications/read-all', { method: 'PATCH' });
+      setNotificationUnreadCount(0);
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.error("Failed to mark all notifications read", err);
+    }
+  };
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -37,7 +80,7 @@ export default function Topbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch recent messages
+  // Fetch recent messages and notifications
   useEffect(() => {
     const fetchMessages = async () => {
       try {
@@ -45,7 +88,6 @@ export default function Topbar() {
         const data = await fetchWithAuth('/chat/recent');
         if (data && data.success) {
           setRecentMessages(data.chats || []);
-          // Count unread (assuming lastMessage has isRead and senderId)
           const unread = (data.chats || []).filter(c => c.lastMessage && !c.lastMessage.isRead && c.lastMessage.senderId !== 'admin').length;
           setUnreadCount(unread);
         }
@@ -53,10 +95,15 @@ export default function Topbar() {
         console.error("Failed to load messages for topbar", err);
       }
     };
+
     fetchMessages();
+    fetchNotifications();
     
-    // Poll every 30 seconds for new messages
-    const interval = setInterval(fetchMessages, 30000);
+    // Poll every 30 seconds
+    const interval = setInterval(() => {
+      fetchMessages();
+      fetchNotifications();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -189,27 +236,78 @@ export default function Topbar() {
             className={`w-10 h-10 flex items-center justify-center rounded-full relative transition-colors ${activeDropdown === 'notifications' ? 'bg-teal-50 text-teal-600' : 'text-slate-600 hover:bg-slate-50 hover:text-teal-600'}`}
           >
             <Bell className="w-6 h-6" />
-            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-teal-500 border-2 border-white rounded-full"></span>
+            {notificationUnreadCount > 0 && (
+              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-teal-500 border-2 border-white rounded-full"></span>
+            )}
           </button>
           {activeDropdown === 'notifications' && (
             <div className="fixed sm:absolute top-[85px] sm:top-full left-4 right-4 sm:left-auto sm:right-24 sm:mt-4 sm:w-80 bg-white rounded-2xl shadow-[0_10px_40px_rgb(0,0,0,0.1)] border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top sm:origin-top-right">
               <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h4 className="font-bold text-slate-800 text-sm">Notifications</h4>
-                <span className="text-xs font-bold text-teal-600 cursor-pointer hover:text-teal-700">Mark all read</span>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-slate-800 text-sm">Notifications</h4>
+                  {notificationUnreadCount > 0 && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-teal-100 text-teal-700">
+                      {notificationUnreadCount} new
+                    </span>
+                  )}
+                </div>
+                <span 
+                  onClick={markAllNotificationsAsRead}
+                  className="text-xs font-bold text-teal-600 cursor-pointer hover:text-teal-700"
+                >
+                  Mark all read
+                </span>
               </div>
               <div className="p-2 max-h-[300px] overflow-y-auto hide-scrollbar">
-                <div className="p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border-b border-slate-50">
-                  <p className="text-sm font-bold text-slate-800">New order #ORD-2025-1251</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Aman Kumar placed a new order.</p>
-                  <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-wider">2 mins ago</p>
-                </div>
-                <div className="p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors">
-                  <p className="text-sm font-bold text-slate-800">Rider delayed</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Rahul Singh is delayed by 10 mins.</p>
-                  <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-wider">15 mins ago</p>
-                </div>
+                {notifications.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400">
+                    <p className="text-xs font-medium">No notifications yet</p>
+                  </div>
+                ) : (
+                  notifications.slice(0, 6).map((n) => (
+                    <div 
+                      key={n._id}
+                      onClick={async () => {
+                        setActiveDropdown(null);
+                        try {
+                          const { fetchWithAuth } = await import("@/lib/api");
+                          await fetchWithAuth(`/notifications/${n._id}/read`, { method: 'PATCH' });
+                          setNotifications(prev => prev.map(item => item._id === n._id ? { ...item, isRead: true } : item));
+                          setNotificationUnreadCount(prev => Math.max(0, prev - 1));
+                        } catch (e) {}
+                        if (n.link) {
+                          router.push(n.link);
+                        } else {
+                          router.push('/notifications');
+                        }
+                      }}
+                      className={`p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border-b border-slate-50 last:border-0 ${
+                        !n.isRead ? 'bg-teal-50/20' : ''
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-0.5">
+                        <p className={`text-sm font-bold truncate ${!n.isRead ? 'text-slate-900' : 'text-slate-700'}`}>
+                          {n.title}
+                        </p>
+                        {!n.isRead && (
+                          <span className="w-2 h-2 rounded-full bg-teal-500 shrink-0 mt-1.5 ml-1"></span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 line-clamp-2">{n.message}</p>
+                      <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-wider">
+                        {formatTimeAgo(n.createdAt)}
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
-              <div className="p-3 border-t border-slate-100 text-center cursor-pointer hover:bg-slate-50 transition-colors">
+              <div 
+                onClick={() => {
+                  setActiveDropdown(null);
+                  router.push('/notifications');
+                }}
+                className="p-3 border-t border-slate-100 text-center cursor-pointer hover:bg-slate-50 transition-colors"
+              >
                 <span className="text-xs font-bold text-teal-600">View all notifications</span>
               </div>
             </div>
@@ -241,38 +339,53 @@ export default function Topbar() {
                 </div>
               ) : (
                 <div className="p-2 max-h-[300px] overflow-y-auto hide-scrollbar">
-                  {recentMessages.map((chat) => (
-                    <div 
-                      key={chat.userId} 
-                      onClick={() => {
-                        setActiveDropdown(null);
-                        router.push(`/chat?userId=${chat.userId}`);
-                      }}
-                      className="p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border-b border-slate-50 last:border-0 flex space-x-3 items-start"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 flex-shrink-0 font-bold">
-                        {chat.user?.displayName ? chat.user.displayName.substring(0, 2).toUpperCase() : 'U'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center mb-0.5">
-                          <p className={`text-sm truncate ${!chat.lastMessage.isRead && chat.lastMessage.senderId !== 'admin' ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
-                            {chat.user?.displayName || chat.user?.email || chat.user?.phone || 'Unknown User'}
-                          </p>
-                          <p className="text-[10px] text-slate-400 whitespace-nowrap">
-                            {new Date(chat.lastMessage.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  {recentMessages.map((chat) => {
+                    const isDelivery = chat.user?.role === 'delivery';
+                    const roleLabel = isDelivery ? 'delivery partner' : 'customer';
+                    const displayName = chat.user?.displayName || chat.user?.email || chat.user?.phone || 'Unknown User';
+
+                    return (
+                      <div 
+                        key={chat.userId} 
+                        onClick={() => {
+                          setActiveDropdown(null);
+                          const roleParam = isDelivery ? 'delivery' : 'customer';
+                          const ticketParam = chat.lastMessage?.ticketId ? `&ticketId=${chat.lastMessage.ticketId}` : '';
+                          router.push(`/messages?userId=${chat.userId}&role=${roleParam}${ticketParam}&t=${Date.now()}`);
+                        }}
+                        className="p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border-b border-slate-50 last:border-0 flex space-x-3 items-start"
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold overflow-hidden ${isDelivery ? 'bg-amber-100 text-amber-700' : 'bg-teal-100 text-teal-600'}`}>
+                          {chat.user?.photoUrl ? (
+                            <img src={chat.user.photoUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            chat.user?.displayName ? chat.user.displayName.substring(0, 2).toUpperCase() : (isDelivery ? 'DP' : 'CU')
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-center mb-0.5">
+                            <p className={`text-sm truncate ${!chat.lastMessage.isRead && chat.lastMessage.senderId !== 'admin' ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
+                              <span>{displayName}</span>
+                              <span className="text-xs font-normal text-slate-400 ml-1">
+                                ({roleLabel})
+                              </span>
+                            </p>
+                            <p className="text-[10px] text-slate-400 whitespace-nowrap ml-2">
+                              {new Date(chat.lastMessage.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </p>
+                          </div>
+                          <p className={`text-xs truncate ${!chat.lastMessage.isRead && chat.lastMessage.senderId !== 'admin' ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
+                            {chat.lastMessage.senderId === 'admin' ? 'You: ' : ''}{chat.lastMessage.text}
                           </p>
                         </div>
-                        <p className={`text-xs truncate ${!chat.lastMessage.isRead && chat.lastMessage.senderId !== 'admin' ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
-                          {chat.lastMessage.senderId === 'admin' ? 'You: ' : ''}{chat.lastMessage.text}
-                        </p>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               
               <div className="p-3 border-t border-slate-100 text-center cursor-pointer hover:bg-slate-50 transition-colors">
-                <span onClick={() => { setActiveDropdown(null); router.push('/chat'); }} className="text-xs font-bold text-teal-600">Open Chat Inbox</span>
+                <span onClick={() => { setActiveDropdown(null); router.push('/messages'); }} className="text-xs font-bold text-teal-600">Open Support Inbox</span>
               </div>
             </div>
           )}

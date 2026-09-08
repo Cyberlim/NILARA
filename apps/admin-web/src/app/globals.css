@@ -19,6 +19,10 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
   }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }

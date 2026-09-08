@@ -35,12 +35,18 @@ export default function AuthGuard({ children }) {
     return null; // Will redirect via useEffect
   }
 
+  const isFixedPage = Boolean(
+    pathname?.startsWith("/messages") || 
+    pathname?.startsWith("/support") || 
+    pathname?.startsWith("/chat")
+  );
+
   return (
     <div className="flex w-full flex-1 h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 ${isFixedPage ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`}>
         <Topbar />
-        <main className="flex-1 p-6 pt-10 md:p-8 md:pt-12">
+        <main className={`flex-1 min-h-0 ${isFixedPage ? 'flex flex-col overflow-hidden p-4 md:px-8 md:py-4' : 'p-6 pt-10 md:p-8 md:pt-12'}`}>
           {children}
         </main>
       </div>

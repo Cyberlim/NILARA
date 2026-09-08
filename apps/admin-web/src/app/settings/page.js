@@ -1,13 +1,14 @@
 "use client";
 
-import { Settings, Shield, Bell, Save, Store, X, Image as ImageIcon, Upload, CheckCircle, AlertCircle } from "lucide-react";
+import { Settings, Shield, Bell, Save, Store, X, Image as ImageIcon, Upload, CheckCircle, AlertCircle, Headphones, Truck, Phone, Mail, AlertTriangle, HelpCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import TwoFactorModal from "@/components/settings/TwoFactorModal";
 
 const tabs = [
   { id: "general", label: "General", icon: Settings },
   { id: "fees", label: "Store Fees", icon: Store },
-  { id: "support", label: "Support & FAQs", icon: Settings },
+  { id: "support", label: "Customer Support", icon: Headphones },
+  { id: "delivery_support", label: "Delivery Support", icon: Truck },
   { id: "banners", label: "Home Banners", icon: ImageIcon },
   { id: "security", label: "Security", icon: Shield },
   { id: "notifications", label: "Notifications", icon: Bell },
@@ -35,6 +36,18 @@ export default function SettingsPage() {
       chatResponseTime: 'Usually replies within 5 minutes'
     },
     faqs: [],
+    deliverySupport: {
+      bannerTitle: 'Partner Support Desk',
+      bannerSubtitle: '24x7 Dedicated assistance for delivery issues, payouts, app bugs, and emergency rider safety.',
+      statusText: 'Support Live',
+      isLive: true,
+      helplineNumber: '1800-102-9999',
+      helplineTiming: 'Toll Free 24x7',
+      supportEmail: 'partner-support@nilara.com',
+      emergencyNumber: '1800-102-9999',
+      emergencyDescription: 'Immediate on-road safety assistance',
+      faqs: []
+    },
     homeBanners: [],
     carouselBanners: []
   });
@@ -56,7 +69,7 @@ export default function SettingsPage() {
   }, []);
 
   const handleSaveSettings = async () => {
-    if (activeTab === 'fees' || activeTab === 'general' || activeTab === 'support' || activeTab === 'banners') {
+    if (activeTab === 'fees' || activeTab === 'general' || activeTab === 'support' || activeTab === 'delivery_support' || activeTab === 'banners') {
       setIsLoadingSettings(true);
       try {
         const res = await fetch('http://localhost:5000/api/v1/settings', {
@@ -420,8 +433,14 @@ export default function SettingsPage() {
           {activeTab === "support" && (
             <div className="space-y-8 animate-in fade-in duration-300">
               <div>
-                <h3 className="text-lg font-black text-slate-800 mb-1">Support & FAQs</h3>
-                <p className="text-xs font-medium text-slate-500 mb-6">Manage customer support contact details and frequently asked questions.</p>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-lg font-black text-slate-800">Customer Support & FAQs</h3>
+                  <span className="text-xs font-bold px-3 py-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-full flex items-center gap-1.5">
+                    <Headphones className="w-3.5 h-3.5" />
+                    Customer App Portal
+                  </span>
+                </div>
+                <p className="text-xs font-medium text-slate-500 mb-6">Manage customer app support contact details and frequently asked questions.</p>
                 
                 <div className="space-y-6 max-w-2xl">
                   <div className="space-y-4">
@@ -445,25 +464,46 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Frequently Asked Questions (FAQs)</label>
+                  <div className="pt-6 border-t border-slate-200 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                          Customer Frequently Asked Questions ({(storeSettings.faqs || []).length})
+                        </label>
+                        <p className="text-[11px] text-slate-500">Help questions displayed on the user mobile and web app.</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const newFaqs = [...(storeSettings.faqs || []), { question: '', answer: '' }];
+                          setStoreSettings({ ...storeSettings, faqs: newFaqs });
+                        }}
+                        className="text-xs font-bold text-teal-700 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5"
+                      >
+                        + Add Customer FAQ
+                      </button>
+                    </div>
+
                     <div className="space-y-4">
                       {(storeSettings.faqs || []).map((faq, index) => (
-                        <div key={index} className="flex gap-2 items-start border border-slate-200 p-4 rounded-xl bg-slate-50">
+                        <div key={index} className="flex gap-2 items-start border border-slate-200 p-4 rounded-xl bg-slate-50 hover:bg-white hover:border-teal-200 transition-all">
+                          <div className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-xs flex-shrink-0 mt-1">
+                            {index + 1}
+                          </div>
                           <div className="flex-1 space-y-3">
                             <input 
                               type="text" 
-                              placeholder="Question"
+                              placeholder="Question (e.g. How do I pause my daily deliveries?)"
                               value={faq.question}
                               onChange={(e) => {
                                 const newFaqs = [...(storeSettings.faqs || [])];
                                 newFaqs[index].question = e.target.value;
                                 setStoreSettings({ ...storeSettings, faqs: newFaqs });
                               }}
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
+                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
                             />
                             <textarea 
-                              placeholder="Answer"
+                              placeholder="Answer..."
                               value={faq.answer}
                               onChange={(e) => {
                                 const newFaqs = [...(storeSettings.faqs || [])];
@@ -480,21 +520,339 @@ export default function SettingsPage() {
                               setStoreSettings({ ...storeSettings, faqs: newFaqs });
                             }}
                             className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                            title="Delete FAQ"
                           >
                             <X className="w-5 h-5" />
                           </button>
                         </div>
                       ))}
+
+                      {(!storeSettings.faqs || storeSettings.faqs.length === 0) && (
+                        <div className="p-8 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                          <p className="text-xs">No customer FAQs added yet. Click "+ Add Customer FAQ" above.</p>
+                        </div>
+                      )}
                     </div>
+
+                    <div className="pt-6 border-t border-slate-200 flex justify-end">
+                      <button 
+                        type="button"
+                        onClick={handleSaveSettings}
+                        disabled={isLoadingSettings}
+                        className="flex items-center px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-50"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        {isLoadingSettings ? 'Saving...' : 'Save Customer Support'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "delivery_support" && (
+            <div className="space-y-8 animate-in fade-in duration-300">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-lg font-black text-slate-800">Delivery Support & FAQs</h3>
+                  <span className="text-xs font-bold px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5" />
+                    Delivery Partner Portal
+                  </span>
+                </div>
+                <p className="text-xs font-medium text-slate-500 mb-6">Manage delivery partner contact channels, helpline numbers, SOS emergency hotline, and rider FAQs.</p>
+                
+                <div className="space-y-6 max-w-3xl">
+                  {/* Card 1: Partner Support Desk Banner */}
+                  <div className="p-5 border border-slate-200 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-emerald-400">
+                          <Headphones className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Hero Card Header (In-App)</span>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer bg-white/10 hover:bg-white/15 px-3 py-1.5 rounded-full transition-all border border-white/10">
+                        <input 
+                          type="checkbox"
+                          checked={storeSettings.deliverySupport?.isLive ?? true}
+                          onChange={(e) => setStoreSettings({
+                            ...storeSettings,
+                            deliverySupport: {
+                              ...(storeSettings.deliverySupport || {}),
+                              isLive: e.target.checked
+                            }
+                          })}
+                          className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+                        />
+                        <span className="text-xs font-semibold text-emerald-300">
+                          {storeSettings.deliverySupport?.isLive ? 'Desk Online' : 'Desk Offline'}
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">Support Desk Title</label>
+                        <input 
+                          type="text" 
+                          value={storeSettings.deliverySupport?.bannerTitle || ''}
+                          onChange={(e) => setStoreSettings({
+                            ...storeSettings,
+                            deliverySupport: {
+                              ...(storeSettings.deliverySupport || {}),
+                              bannerTitle: e.target.value
+                            }
+                          })}
+                          placeholder="e.g. Partner Support Desk"
+                          className="w-full px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-sm font-semibold text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">Live Status Badge Text</label>
+                        <input 
+                          type="text" 
+                          value={storeSettings.deliverySupport?.statusText || ''}
+                          onChange={(e) => setStoreSettings({
+                            ...storeSettings,
+                            deliverySupport: {
+                              ...(storeSettings.deliverySupport || {}),
+                              statusText: e.target.value
+                            }
+                          })}
+                          placeholder="e.g. Support Live"
+                          className="w-full px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-sm font-semibold text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">Support Desk Subtitle</label>
+                      <textarea 
+                        value={storeSettings.deliverySupport?.bannerSubtitle || ''}
+                        onChange={(e) => setStoreSettings({
+                          ...storeSettings,
+                          deliverySupport: {
+                            ...(storeSettings.deliverySupport || {}),
+                            bannerSubtitle: e.target.value
+                          }
+                        })}
+                        placeholder="e.g. 24x7 Dedicated assistance for delivery issues, payouts, app bugs..."
+                        rows={2}
+                        className="w-full px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-sm font-medium text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Card 2: Contact Channels */}
+                  <div className="p-5 border border-slate-200 rounded-2xl bg-white shadow-sm space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-teal-600" />
+                      Partner Support Channels & Contacts
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Partner Helpline Number</label>
+                        <input 
+                          type="text" 
+                          value={storeSettings.deliverySupport?.helplineNumber || ''}
+                          onChange={(e) => setStoreSettings({
+                            ...storeSettings,
+                            deliverySupport: {
+                              ...(storeSettings.deliverySupport || {}),
+                              helplineNumber: e.target.value
+                            }
+                          })}
+                          placeholder="1800-102-9999"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Helpline Availability Timing</label>
+                        <input 
+                          type="text" 
+                          value={storeSettings.deliverySupport?.helplineTiming || ''}
+                          onChange={(e) => setStoreSettings({
+                            ...storeSettings,
+                            deliverySupport: {
+                              ...(storeSettings.deliverySupport || {}),
+                              helplineTiming: e.target.value
+                            }
+                          })}
+                          placeholder="Toll Free 24x7"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Partner Desk Email</label>
+                      <input 
+                        type="email" 
+                        value={storeSettings.deliverySupport?.supportEmail || ''}
+                        onChange={(e) => setStoreSettings({
+                          ...storeSettings,
+                          deliverySupport: {
+                            ...(storeSettings.deliverySupport || {}),
+                            supportEmail: e.target.value
+                          }
+                        })}
+                        placeholder="partner-support@nilara.com"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+                      />
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100">
+                      <div className="p-4 rounded-xl bg-red-50/60 border border-red-100 space-y-3">
+                        <div className="flex items-center gap-2 text-red-600">
+                          <AlertTriangle className="w-4 h-4" />
+                          <span className="text-xs font-bold uppercase tracking-wider">Emergency SOS Safety Hotline</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-bold text-red-700 uppercase tracking-wider mb-1">SOS Phone Number</label>
+                            <input 
+                              type="text" 
+                              value={storeSettings.deliverySupport?.emergencyNumber || ''}
+                              onChange={(e) => setStoreSettings({
+                                ...storeSettings,
+                                deliverySupport: {
+                                  ...(storeSettings.deliverySupport || {}),
+                                  emergencyNumber: e.target.value
+                                }
+                              })}
+                              placeholder="1800-102-9999"
+                              className="w-full px-4 py-2 bg-white border border-red-200 rounded-xl text-sm font-bold text-red-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-red-700 uppercase tracking-wider mb-1">Emergency Description</label>
+                            <input 
+                              type="text" 
+                              value={storeSettings.deliverySupport?.emergencyDescription || ''}
+                              onChange={(e) => setStoreSettings({
+                                ...storeSettings,
+                                deliverySupport: {
+                                  ...(storeSettings.deliverySupport || {}),
+                                  emergencyDescription: e.target.value
+                                }
+                              })}
+                              placeholder="Immediate on-road safety assistance"
+                              className="w-full px-4 py-2 bg-white border border-red-200 rounded-xl text-sm font-medium text-red-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 transition-all"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Partner FAQs */}
+                  <div className="pt-4 border-t border-slate-200 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                          Partner Frequently Asked Questions ({(storeSettings.deliverySupport?.faqs || []).length})
+                        </label>
+                        <p className="text-[11px] text-slate-500">Add, reorder, or edit help articles displayed in the rider app.</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const currentFaqs = storeSettings.deliverySupport?.faqs || [];
+                          setStoreSettings({
+                            ...storeSettings,
+                            deliverySupport: {
+                              ...(storeSettings.deliverySupport || {}),
+                              faqs: [...currentFaqs, { question: '', answer: '' }]
+                            }
+                          });
+                        }}
+                        className="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        + Add Partner FAQ
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {(storeSettings.deliverySupport?.faqs || []).map((faq, index) => (
+                        <div key={index} className="flex gap-2 items-start border border-slate-200 p-4 rounded-xl bg-slate-50 hover:bg-white hover:border-amber-200 transition-all">
+                          <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs flex-shrink-0 mt-1">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 space-y-3">
+                            <input 
+                              type="text" 
+                              placeholder="FAQ Question (e.g., When will my daily earnings be credited?)"
+                              value={faq.question}
+                              onChange={(e) => {
+                                const newFaqs = [...(storeSettings.deliverySupport?.faqs || [])];
+                                newFaqs[index].question = e.target.value;
+                                setStoreSettings({
+                                  ...storeSettings,
+                                  deliverySupport: {
+                                    ...(storeSettings.deliverySupport || {}),
+                                    faqs: newFaqs
+                                  }
+                                });
+                              }}
+                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all" 
+                            />
+                            <textarea 
+                              placeholder="FAQ Answer..."
+                              value={faq.answer}
+                              onChange={(e) => {
+                                const newFaqs = [...(storeSettings.deliverySupport?.faqs || [])];
+                                newFaqs[index].answer = e.target.value;
+                                setStoreSettings({
+                                  ...storeSettings,
+                                  deliverySupport: {
+                                    ...(storeSettings.deliverySupport || {}),
+                                    faqs: newFaqs
+                                  }
+                                });
+                              }}
+                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all h-20 resize-none" 
+                            />
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const newFaqs = (storeSettings.deliverySupport?.faqs || []).filter((_, i) => i !== index);
+                              setStoreSettings({
+                                ...storeSettings,
+                                deliverySupport: {
+                                  ...(storeSettings.deliverySupport || {}),
+                                  faqs: newFaqs
+                                }
+                              });
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                            title="Delete FAQ"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      ))}
+
+                      {(!storeSettings.deliverySupport?.faqs || storeSettings.deliverySupport.faqs.length === 0) && (
+                        <div className="p-8 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                          <p className="text-xs">No partner FAQs added yet. Click "+ Add Partner FAQ" above.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-slate-200 flex justify-end">
                     <button 
                       type="button"
-                      onClick={() => {
-                        const newFaqs = [...(storeSettings.faqs || []), { question: '', answer: '' }];
-                        setStoreSettings({ ...storeSettings, faqs: newFaqs });
-                      }}
-                      className="mt-4 text-sm font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors inline-block"
+                      onClick={handleSaveSettings}
+                      disabled={isLoadingSettings}
+                      className="flex items-center px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-50"
                     >
-                      + Add FAQ
+                      <Save className="w-4 h-4 mr-2" />
+                      {isLoadingSettings ? 'Saving...' : 'Save Delivery Support'}
                     </button>
                   </div>
                 </div>

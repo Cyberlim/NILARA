@@ -6,7 +6,7 @@ import {
   Home, ShoppingBag, Grid, PackageSearch, Receipt, Users, Bike,
   Calendar, CreditCard, Droplets, MapPin, BadgeDollarSign, HeartHandshake,
   Megaphone, Tag, Image as ImageIcon, Wallet, Banknote, FileText, BadgeCheck, X,
-  Mail, Bell, User, Settings, Layers, LogOut, MessageSquare, Star
+  Mail, Bell, User, Settings, Layers, LogOut, MessageSquare, Star, Headphones
 } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAuth } from "@/context/AuthContext";
@@ -82,7 +82,7 @@ const SIDEBAR_GROUPS = [
   {
     label: "SYSTEM & ACCOUNT",
     items: [
-      { title: "Messages", path: "/messages", icon: Mail },
+      { title: "Support", path: "/messages", icon: Headphones },
       { title: "Notifications", path: "/notifications", icon: Bell },
       { title: "My Profile", path: "/profile", icon: User },
       { title: "Settings", path: "/settings", icon: Settings },
