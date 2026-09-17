@@ -612,7 +612,7 @@ class _AlertToneSubScreenState extends State<_AlertToneSubScreen> {
   late double _volume;
   late bool _vibrateAlert;
 
-  bool _isPlaying = false;
+  String? _playingTone;
   Timer? _previewTimer;
 
   final List<Map<String, String>> _tones = [
@@ -658,16 +658,20 @@ class _AlertToneSubScreenState extends State<_AlertToneSubScreen> {
   }
 
   void _testTone(String toneName) {
-    if (_isPlaying) {
+    if (_playingTone == toneName) {
       _previewTimer?.cancel();
       AlertAudioService().stopTone();
-      setState(() => _isPlaying = false);
+      ScaffoldMessenger.of(context).clearSnackBars();
+      setState(() => _playingTone = null);
       return;
     }
 
-    setState(() => _isPlaying = true);
+    _previewTimer?.cancel();
+    AlertAudioService().stopTone();
 
-    // Play real audio tone via Web Audio / device sound
+    setState(() => _playingTone = toneName);
+
+    // Play real audio tone via native AudioTrack / ToneGenerator / Web Audio
     AlertAudioService().playTone(toneName, volume: _volume);
 
     // Vibrate if vibration is enabled
@@ -675,7 +679,7 @@ class _AlertToneSubScreenState extends State<_AlertToneSubScreen> {
       AlertAudioService().vibrate(durationMs: 350);
     }
 
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -698,7 +702,7 @@ class _AlertToneSubScreenState extends State<_AlertToneSubScreen> {
     _previewTimer = Timer(const Duration(seconds: 3), () {
       if (mounted) {
         AlertAudioService().stopTone();
-        setState(() => _isPlaying = false);
+        setState(() => _playingTone = null);
       }
     });
   }
@@ -752,6 +756,7 @@ class _AlertToneSubScreenState extends State<_AlertToneSubScreen> {
               itemBuilder: (context, index) {
                 final tone = _tones[index];
                 final isSelected = _selectedTone == tone['name'];
+                final isPlayingThis = _playingTone == tone['name'];
 
                 return ListTile(
                   contentPadding:
@@ -802,17 +807,17 @@ class _AlertToneSubScreenState extends State<_AlertToneSubScreen> {
                   subtitle: Text(
                     tone['desc']!,
                     style: GoogleFonts.outfit(
-                        fontSize: 12, color: Colors.grey.shade600),
+                      fontSize: 12, color: Colors.grey.shade600),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: Icon(
-                          _isPlaying && isSelected
+                          isPlayingThis
                               ? Icons.stop_circle_rounded
                               : Icons.play_circle_fill_rounded,
-                          color: _isPlaying && isSelected
+                          color: isPlayingThis
                               ? Colors.orange
                               : const Color(0xFF1E9C1C),
                           size: 28,
@@ -899,8 +904,8 @@ class _AlertToneSubScreenState extends State<_AlertToneSubScreen> {
                               },
                               onChangeEnd: (val) {
                                 _persist();
-                                if (_isPlaying) {
-                                  AlertAudioService().playTone(_selectedTone, volume: val);
+                                if (_playingTone != null) {
+                                  AlertAudioService().playTone(_playingTone!, volume: val);
                                 }
                               },
                             ),

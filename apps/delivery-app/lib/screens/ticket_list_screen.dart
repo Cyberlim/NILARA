@@ -17,7 +17,7 @@ class _TicketListScreenState extends State<TicketListScreen> {
   bool _isLoading = true;
   String _selectedFilter = 'All'; // 'All', 'Open', 'Closed'
 
-  static const String _apiUrl = 'http://localhost:5000/api/v1';
+  String get _apiUrl => UserService.baseUrl;
 
   @override
   void initState() {

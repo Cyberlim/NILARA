@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'delivery_service.dart';
 
 class UserProfile {
   final String id;
@@ -39,7 +40,8 @@ class UserService {
   factory UserService() => _instance;
   UserService._internal();
 
-  static const String baseUrl = 'http://localhost:5000/api/v1';
+  static String _activeBaseUrl = 'http://localhost:5000/api/v1';
+  static String get baseUrl => _activeBaseUrl;
 
   final ValueNotifier<UserProfile?> currentUser = ValueNotifier(null);
   final ValueNotifier<String?> token = ValueNotifier(null);
@@ -73,48 +75,59 @@ class UserService {
   }
 
   Future<bool> _syncWithBackend(String idToken) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/sync'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $idToken',
-        },
-      );
+    final urlsToTry = <String>{
+      _activeBaseUrl,
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+        'http://10.0.2.2:5000/api/v1',
+        'http://127.0.0.1:5000/api/v1',
+      ],
+    }.toList();
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        // Sync successful
-        if (data['success'] == true) {
-          final userData = data['data'];
-          if (userData['role'] != 'delivery') {
-            // Not a delivery partner!
-            debugPrint("User is not a delivery partner! Role is: ${userData['role']}");
-            await logout();
-            return false;
+    for (final url in urlsToTry) {
+      try {
+        final response = await http.post(
+          Uri.parse('$url/auth/sync'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $idToken',
+          },
+        ).timeout(const Duration(seconds: 4));
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          // Sync successful
+          if (data['success'] == true) {
+            _activeBaseUrl = url;
+            final userData = data['data'];
+            if (userData['role'] != 'delivery') {
+              // Not a delivery partner!
+              debugPrint("User is not a delivery partner! Role is: ${userData['role']}");
+              await logout();
+              return false;
+            }
+            currentUser.value = UserProfile(
+              id: userData['id'] ?? '',
+              name: userData['displayName'] ?? '',
+              email: userData['email'] ?? '',
+              phone: userData['phone'] ?? '',
+              role: userData['role'],
+              photoUrl: userData['photoUrl'],
+              onboardingComplete: userData['onboardingComplete'] ?? false,
+              deliveryDetails: userData['deliveryDetails'],
+              dob: userData['dob'],
+              address: userData['address'],
+              emergencyContact: userData['emergencyContact'],
+              createdAt: userData['createdAt'],
+            );
+            DeliveryService().initSocket();
+            return true;
           }
-          currentUser.value = UserProfile(
-            id: userData['id'] ?? '',
-            name: userData['displayName'] ?? '',
-            email: userData['email'] ?? '',
-            phone: userData['phone'] ?? '',
-            role: userData['role'],
-            photoUrl: userData['photoUrl'],
-            onboardingComplete: userData['onboardingComplete'] ?? false,
-            deliveryDetails: userData['deliveryDetails'],
-            dob: userData['dob'],
-            address: userData['address'],
-            emergencyContact: userData['emergencyContact'],
-            createdAt: userData['createdAt'],
-          );
-          return true;
         }
+      } catch (e) {
+        debugPrint('Sync attempt on $url failed: $e');
       }
-      return false;
-    } catch (e) {
-      debugPrint('Error syncing user: $e');
-      return false;
     }
+    return false;
   }
 
   Future<bool> login(String email, String password) async {
@@ -402,6 +415,7 @@ class UserService {
   }
 
   Future<void> logout() async {
+    DeliveryService().disconnectSocket();
     await FirebaseAuth.instance.signOut();
     currentUser.value = null;
     token.value = null;

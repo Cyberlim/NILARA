@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/wallet_service.dart';
+import '../services/user_service.dart';
 
 class EarningsTab extends StatefulWidget {
   const EarningsTab({super.key});
@@ -10,6 +11,12 @@ class EarningsTab extends StatefulWidget {
 }
 
 class _EarningsTabState extends State<EarningsTab> {
+  @override
+  void initState() {
+    super.initState();
+    WalletService.instance.fetchWalletData();
+  }
+
   void _openWithdrawModal(double currentBalance) {
     showModalBottomSheet(
       context: context,
@@ -18,7 +25,6 @@ class _EarningsTabState extends State<EarningsTab> {
       builder: (context) => _WithdrawalFlowBottomSheet(
         availableBalance: currentBalance,
         onWithdrawSuccess: (double withdrawAmount, String bankName) {
-          // Perform withdrawal in central WalletService!
           WalletService.instance.withdraw(withdrawAmount, bankName);
         },
       ),
@@ -27,207 +33,265 @@ class _EarningsTabState extends State<EarningsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Title
-          Text(
-            "Earnings & Wallet",
-            style: GoogleFonts.outfit(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF0F172A),
+    return RefreshIndicator(
+      color: const Color(0xFF1E9C1C),
+      onRefresh: () => WalletService.instance.fetchWalletData(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Title
+            Text(
+              "Earnings & Wallet",
+              style: GoogleFonts.outfit(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF0F172A),
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Track daily income and transfer directly to your bank",
-            style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 4),
+            Text(
+              "Track daily income and transfer directly to your bank",
+              style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 20),
 
-          // Available Balance Card listening to central WalletService!
-          ValueListenableBuilder<double>(
-            valueListenable: WalletService.instance.balanceNotifier,
-            builder: (context, currentBalance, child) {
-              return Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1E9C1C), Color(0xFF146B12)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF1E9C1C).withValues(alpha: 0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
+            // Available Balance Card listening to central WalletService!
+            ValueListenableBuilder<double>(
+              valueListenable: WalletService.instance.balanceNotifier,
+              builder: (context, currentBalance, child) {
+                return Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1E9C1C), Color(0xFF146B12)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                  ],
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1E9C1C).withValues(alpha: 0.3),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Available Balance",
+                                style: GoogleFonts.outfit(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "₹${currentBalance.toStringAsFixed(2)}",
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Divider(color: Colors.white.withValues(alpha: 0.2), thickness: 1),
+                      const SizedBox(height: 14),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: ValueListenableBuilder<String>(
+                              valueListenable: WalletService.instance.lastPayoutDateNotifier,
+                              builder: (context, payoutDate, child) {
+                                final payoutAmt = WalletService.instance.lastPayoutAmountNotifier.value;
+                                final bool hasLastTransfer = payoutDate.isNotEmpty && payoutDate != "Never" && payoutAmt > 0;
+                                if (!hasLastTransfer) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Text(
+                                  "Last Transfer: $payoutDate, ₹${payoutAmt.toStringAsFixed(0)}",
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              },
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: currentBalance > 0 ? () => _openWithdrawModal(currentBalance) : null,
+                            icon: const Icon(Icons.arrow_upward, size: 16, color: Color(0xFF1E9C1C)),
+                            label: Text(
+                              "Withdraw",
+                              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFF1E9C1C),
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 28),
+
+            // Daily & Weekly Stats Summary (Dynamic Real Data)
+            Row(
+              children: [
+                Expanded(
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: WalletService.instance.todayDeliveredOrdersNotifier,
+                    builder: (context, todayCount, child) {
+                      return _buildSummaryCard(
+                        title: "Today's Orders",
+                        value: "$todayCount Delivered",
+                        icon: Icons.delivery_dining,
+                        iconColor: const Color(0xFF1E9C1C),
+                      );
+                    },
+                  ),
                 ),
-                child: Column(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: WalletService.instance.weeklyEarningsNotifier,
+                    builder: (context, weeklyEarnings, child) {
+                      return _buildSummaryCard(
+                        title: "Weekly Earnings",
+                        value: "₹${weeklyEarnings.toStringAsFixed(2)}",
+                        icon: Icons.date_range,
+                        iconColor: Colors.purple,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 28),
+
+            // Transactions Header listening to central WalletService!
+            ValueListenableBuilder<List<Map<String, dynamic>>>(
+              valueListenable: WalletService.instance.transactionsNotifier,
+              builder: (context, transactions, child) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Text(
+                          "Transaction History",
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        if (transactions.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              "${transactions.length} items",
+                              style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Transaction List or Empty State
+                    if (transactions.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
                           children: [
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.receipt_long_outlined, size: 32, color: Colors.grey.shade400),
+                            ),
+                            const SizedBox(height: 12),
                             Text(
-                              "Available Balance",
-                              style: GoogleFonts.outfit(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500),
+                              "No Transactions Yet",
+                              style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              "₹${currentBalance.toStringAsFixed(2)}",
-                              style: GoogleFonts.outfit(
-                                color: Colors.white,
-                                fontSize: 34,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              "Your delivery earnings and withdrawals will appear here.",
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey.shade500),
                             ),
                           ],
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Divider(color: Colors.white.withValues(alpha: 0.2), thickness: 1),
-                    const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: ValueListenableBuilder<String>(
-                            valueListenable: WalletService.instance.lastPayoutDateNotifier,
-                            builder: (context, payoutDate, child) {
-                              final payoutAmt = WalletService.instance.lastPayoutAmountNotifier.value;
-                              return Text(
-                                "Last Transfer: $payoutDate, ₹${payoutAmt.toStringAsFixed(0)}",
-                                style: GoogleFonts.outfit(color: Colors.white.withValues(alpha: 0.9), fontSize: 12, fontWeight: FontWeight.w500),
-                                overflow: TextOverflow.ellipsis,
-                              );
-                            },
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: currentBalance > 0 ? () => _openWithdrawModal(currentBalance) : null,
-                          icon: const Icon(Icons.arrow_upward, size: 16, color: Color(0xFF1E9C1C)),
-                          label: Text(
-                            "Withdraw",
-                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF1E9C1C),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                        ),
-                      ],
-                    ),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: transactions.length,
+                        itemBuilder: (context, index) {
+                          final tx = transactions[index];
+                          return _buildTransactionTile(
+                            title: tx["title"] as String,
+                            time: tx["time"] as String,
+                            amount: tx["amount"] as String,
+                            isCredit: tx["isCredit"] as bool,
+                            type: tx["type"] as String,
+                          );
+                        },
+                      ),
                   ],
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 28),
-
-          // Daily & Weekly Stats Summary
-          Row(
-            children: [
-              Expanded(
-                child: _buildSummaryCard(
-                  title: "Today's Orders",
-                  value: "6 Delivered",
-                  icon: Icons.delivery_dining,
-                  iconColor: const Color(0xFF1E9C1C),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildSummaryCard(
-                  title: "Weekly Earnings",
-                  value: "₹5,750.00",
-                  icon: Icons.date_range,
-                  iconColor: Colors.purple,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 28),
-
-          // Transactions Header listening to central WalletService!
-          ValueListenableBuilder<List<Map<String, dynamic>>>(
-            valueListenable: WalletService.instance.transactionsNotifier,
-            builder: (context, transactions, child) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Transaction History",
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0F172A),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          "${transactions.length} items",
-                          style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Transaction List
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: transactions.length,
-                    itemBuilder: (context, index) {
-                      final tx = transactions[index];
-                      return _buildTransactionTile(
-                        title: tx["title"] as String,
-                        time: tx["time"] as String,
-                        amount: tx["amount"] as String,
-                        isCredit: tx["isCredit"] as bool,
-                        type: tx["type"] as String,
-                      );
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 40),
-        ],
+                );
+              },
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }
@@ -355,32 +419,58 @@ class _WithdrawalFlowBottomSheet extends StatefulWidget {
 class _WithdrawalFlowBottomSheetState extends State<_WithdrawalFlowBottomSheet> {
   int _step = 1; // Step 1: Select Bank & Amount | Step 2: Withdrawal Success
   late TextEditingController _amountController;
-  String _selectedBank = "HDFC Bank (•••• 4321)";
+  late String _selectedBank;
+  late List<Map<String, String>> _banks;
+  String _referenceId = "#TXN-PENDING";
   double _lastWithdrawnAmount = 0.0;
   bool _isLoading = false;
-
-  final List<Map<String, String>> _banks = [
-    {
-      "name": "HDFC Bank (•••• 4321)",
-      "desc": "Primary Account • Instant Transfer",
-      "icon": "🏦",
-    },
-    {
-      "name": "ICICI Bank (•••• 8765)",
-      "desc": "Secondary Account",
-      "icon": "🏦",
-    },
-    {
-      "name": "UPI (rahul@okaxis)",
-      "desc": "Instant VPA Payout",
-      "icon": "💳",
-    },
-  ];
 
   @override
   void initState() {
     super.initState();
     _amountController = TextEditingController(text: widget.availableBalance.toInt().toString());
+    _banks = _getRealBankAccounts();
+    _selectedBank = _banks.isNotEmpty ? _banks.first["name"]! : "Primary Bank Account";
+  }
+
+  List<Map<String, String>> _getRealBankAccounts() {
+    final user = UserService().currentUser.value;
+    final bankDetails = user?.deliveryDetails?['bankDetails'];
+    final List<Map<String, String>> list = [];
+
+    if (bankDetails != null) {
+      final String? bName = bankDetails['bankName']?.toString();
+      final String? accNum = bankDetails['accountNumber']?.toString();
+      final String? upi = bankDetails['upiId']?.toString();
+
+      if (accNum != null && accNum.isNotEmpty) {
+        final last4 = accNum.length > 4 ? accNum.substring(accNum.length - 4) : accNum;
+        final bankTitle = (bName != null && bName.isNotEmpty) ? bName : 'Bank Account';
+        list.add({
+          "name": "$bankTitle (•••• $last4)",
+          "desc": "${bankDetails['accountType'] ?? 'Savings Account'} • ${bankDetails['ifscCode'] ?? 'Verified'}",
+          "icon": "🏦",
+        });
+      }
+
+      if (upi != null && upi.isNotEmpty) {
+        list.add({
+          "name": "UPI ($upi)",
+          "desc": "Instant VPA Payout",
+          "icon": "💳",
+        });
+      }
+    }
+
+    if (list.isEmpty) {
+      list.add({
+        "name": "Primary Bank Account",
+        "desc": "Direct Instant Bank Transfer",
+        "icon": "🏦",
+      });
+    }
+
+    return list;
   }
 
   @override
@@ -401,14 +491,25 @@ class _WithdrawalFlowBottomSheetState extends State<_WithdrawalFlowBottomSheet> 
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _isLoading = false;
-      _lastWithdrawnAmount = enteredAmount;
-      _step = 2; // Move to Success Screen
-    });
+    final result = await WalletService.instance.withdraw(enteredAmount, _selectedBank);
+    setState(() => _isLoading = false);
 
-    widget.onWithdrawSuccess(_lastWithdrawnAmount, _selectedBank);
+    if (result != null) {
+      final tx = result['transaction'];
+      final String txId = tx?['_id']?.toString() ?? '';
+      _referenceId = txId.isNotEmpty
+          ? "#TXN-${txId.length >= 8 ? txId.substring(txId.length - 8).toUpperCase() : txId.toUpperCase()}"
+          : "#TXN-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}";
+
+      setState(() {
+        _lastWithdrawnAmount = enteredAmount;
+        _step = 2; // Move to Success Screen
+      });
+
+      widget.onWithdrawSuccess(_lastWithdrawnAmount, _selectedBank);
+    } else {
+      _showSnackBar("Withdrawal request failed. Minimum payout is ₹100.");
+    }
   }
 
   void _showSnackBar(String msg) {
@@ -666,7 +767,7 @@ class _WithdrawalFlowBottomSheetState extends State<_WithdrawalFlowBottomSheet> 
               const Divider(height: 16),
               _buildDetailRow("Bank Account", _selectedBank),
               const Divider(height: 16),
-              _buildDetailRow("Reference ID", "#TXN-98471203"),
+              _buildDetailRow("Reference ID", _referenceId),
               const Divider(height: 16),
               _buildDetailRow("Status", "Instant Completed 🟢"),
             ],

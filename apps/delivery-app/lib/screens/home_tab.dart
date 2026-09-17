@@ -79,10 +79,15 @@ class HomeTab extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         Expanded(
-                          child: _buildPurpleStatColumn(
-                            "6",
-                            "Orders Delivered",
-                            onTap: () => onSelectTab?.call(2), // Go to Orders tab
+                          child: ValueListenableBuilder<int>(
+                            valueListenable: WalletService.instance.todayDeliveredOrdersNotifier,
+                            builder: (context, count, child) {
+                              return _buildPurpleStatColumn(
+                                "$count",
+                                "Orders Delivered",
+                                onTap: () => onSelectTab?.call(2), // Go to Orders tab
+                              );
+                            },
                           ),
                         ),
                         Container(height: 35, width: 1, color: Colors.white.withValues(alpha: 0.2)),

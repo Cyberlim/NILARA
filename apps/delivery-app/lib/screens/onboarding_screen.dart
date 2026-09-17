@@ -171,7 +171,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       final token = UserService().token.value;
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://localhost:5000/api/v1/delivery/onboarding'),
+        Uri.parse('${UserService.baseUrl}/delivery/onboarding'),
       );
 
       request.headers['Authorization'] = 'Bearer $token';

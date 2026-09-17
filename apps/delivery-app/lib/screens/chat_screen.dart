@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:socket_io_client/socket_io_client.dart' as socket_io;
@@ -30,9 +31,11 @@ class _ChatScreenState extends State<ChatScreen> {
   List<dynamic> _messages = [];
   bool _isLoading = true;
   socket_io.Socket? _socket;
+  Timer? _pollingTimer;
+  String? _authToken;
 
-  static const String _socketUrl = 'http://localhost:5000';
-  static const String _apiUrl = 'http://localhost:5000/api/v1';
+  String get _socketUrl => UserService.baseUrl.replaceAll('/api/v1', '');
+  String get _apiUrl => UserService.baseUrl;
 
   String _formatDateDivider(String? dateString) {
     if (dateString == null) return '';
@@ -80,8 +83,14 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
+    _authToken = token;
     await _loadHistory(token);
     _connectSocket(token);
+
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      _silentSyncHistory();
+    });
   }
 
   Future<void> _loadHistory(String token) async {
@@ -108,10 +117,49 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _silentSyncHistory() async {
+    if (!mounted || _authToken == null) return;
+    try {
+      final response = await http.get(
+        Uri.parse('$_apiUrl/tickets/${widget.ticketId}/messages'),
+        headers: {'Authorization': 'Bearer $_authToken'},
+      );
+
+      if (response.statusCode == 200 && mounted) {
+        final data = jsonDecode(response.body);
+        if (data['success'] && data['messages'] is List) {
+          final List<dynamic> serverMessages = data['messages'];
+          bool hasChanges = serverMessages.length != _messages.length;
+          if (!hasChanges) {
+            for (int i = 0; i < serverMessages.length; i++) {
+              if (serverMessages[i]['_id'] != _messages[i]['_id'] ||
+                  serverMessages[i]['isRead'] != _messages[i]['isRead']) {
+                hasChanges = true;
+                break;
+              }
+            }
+          }
+
+          if (hasChanges) {
+            final shouldScroll = serverMessages.length != _messages.length;
+            setState(() {
+              _messages = serverMessages;
+            });
+            if (shouldScroll) {
+              _scrollToBottom();
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   void _connectSocket(String token) {
     _socket = socket_io.io(
       _socketUrl,
       socket_io.OptionBuilder()
+          .setTransports(['websocket'])
+          .enableReconnection()
           .disableAutoConnect()
           .setAuth({'token': token})
           .setExtraHeaders({'authorization': 'Bearer $token'})
@@ -122,7 +170,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _socket!.onConnect((_) {
       debugPrint('Connected to delivery partner chat socket');
-      _socket!.emit('mark_as_read', {'senderId': 'admin', 'ticketId': widget.ticketId});
+      _socket!.emit('join_ticket', widget.ticketId);
+      _socket!.emit('mark_as_read', {'ticketId': widget.ticketId});
     });
 
     _socket!.onConnectError((err) {
@@ -142,9 +191,23 @@ class _ChatScreenState extends State<ChatScreen> {
         });
 
         if (data['senderId'] == 'admin') {
-          _socket!.emit('mark_as_read', {'senderId': 'admin', 'ticketId': widget.ticketId});
+          _socket!.emit('mark_as_read', {'ticketId': widget.ticketId});
         }
       }
+    });
+
+    _socket!.on('messages_read', (data) {
+      if (!mounted || data == null) return;
+      final tId = (data['ticketId'] ?? '').toString();
+      if (tId.isNotEmpty && tId != widget.ticketId.toString()) return;
+
+      setState(() {
+        for (var m in _messages) {
+          if (m['senderId'] != 'admin') {
+            m['isRead'] = true;
+          }
+        }
+      });
     });
 
     _socket!.onDisconnect((_) => debugPrint('Disconnected from chat socket'));
@@ -190,6 +253,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _socket?.disconnect();
@@ -353,14 +417,27 @@ class _ChatScreenState extends State<ChatScreen> {
                                           height: 1.3,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _formatTime(message['createdAt']),
-                                        style: GoogleFonts.outfit(
-                                          color: isMe ? Colors.white70 : Colors.grey.shade400,
-                                          fontSize: 10,
-                                        ),
-                                      ),
+                                       const SizedBox(height: 4),
+                                       Row(
+                                         mainAxisSize: MainAxisSize.min,
+                                         children: [
+                                           Text(
+                                             _formatTime(message['createdAt']),
+                                             style: GoogleFonts.outfit(
+                                               color: isMe ? Colors.white70 : Colors.grey.shade400,
+                                               fontSize: 10,
+                                             ),
+                                           ),
+                                           if (isMe) ...[
+                                             const SizedBox(width: 4),
+                                             Icon(
+                                               message['isRead'] == true ? Icons.done_all_rounded : Icons.check_rounded,
+                                               size: 14,
+                                               color: message['isRead'] == true ? const Color(0xFF80D8FF) : Colors.white60,
+                                             ),
+                                           ],
+                                         ],
+                                       ),
                                     ],
                                   ),
                                 ),

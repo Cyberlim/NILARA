@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'ticket_list_screen.dart';
+import '../services/user_service.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -13,7 +14,7 @@ class HelpSupportScreen extends StatefulWidget {
 }
 
 class _HelpSupportScreenState extends State<HelpSupportScreen> {
-  static const String _apiUrl = 'http://localhost:5000/api/v1';
+  String get _apiUrl => UserService.baseUrl;
 
   String _bannerTitle = 'Partner Support Desk';
   String _bannerSubtitle =

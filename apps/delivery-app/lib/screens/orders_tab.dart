@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/delivery_service.dart';
 
-class OrdersTab extends StatelessWidget {
+class OrdersTab extends StatefulWidget {
   const OrdersTab({super.key});
+
+  @override
+  State<OrdersTab> createState() => _OrdersTabState();
+}
+
+class _OrdersTabState extends State<OrdersTab> {
+  @override
+  void initState() {
+    super.initState();
+    DeliveryService().fetchMyOrders();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +28,7 @@ class OrdersTab extends StatelessWidget {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black87),
             onPressed: () {
-              // Note: If used as a bottom tab, back button might just change to home tab.
+              Navigator.maybePop(context);
             },
           ),
           title: Text("My Orders", style: GoogleFonts.outfit(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
@@ -33,78 +45,146 @@ class OrdersTab extends StatelessWidget {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            _buildOrdersList(),
-            _buildOrdersList(filter: "Delivered"),
-            _buildOrdersList(filter: "Cancelled"),
-          ],
+        body: ValueListenableBuilder<List<dynamic>>(
+          valueListenable: DeliveryService().myOrders,
+          builder: (context, orders, child) {
+            return TabBarView(
+              children: [
+                _buildOrdersList(orders),
+                _buildOrdersList(orders, filter: "delivered"),
+                _buildOrdersList(orders, filter: "cancelled"),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildOrdersList({String? filter}) {
-    // Dummy data matching screenshot
-    final orders = [
-      {"id": "#CL12345678", "status": "Delivered", "date": "Today, 11:30 AM", "items": "6 items", "amount": "₹45.00"},
-      {"id": "#CL12345677", "status": "Delivered", "date": "Today, 10:15 AM", "items": "4 items", "amount": "₹38.00"},
-      {"id": "#CL12345676", "status": "Cancelled", "date": "Today, 09:20 AM", "items": "-", "amount": "₹0.00"},
-      {"id": "#CL12345675", "status": "Delivered", "date": "Yesterday, 08:45 PM", "items": "7 items", "amount": "₹52.00"},
-      {"id": "#CL12345674", "status": "Delivered", "date": "Yesterday, 07:30 PM", "items": "3 items", "amount": "₹41.00"},
-    ];
-
-    var filtered = orders;
+  Widget _buildOrdersList(List<dynamic> allOrders, {String? filter}) {
+    var filtered = allOrders;
     if (filter != null) {
-      filtered = orders.where((o) => o['status'] == filter).toList();
+      filtered = allOrders.where((o) => (o['status']?.toString().toLowerCase()) == filter.toLowerCase()).toList();
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) {
-        final order = filtered[index];
-        final isDelivered = order['status'] == "Delivered";
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    if (filtered.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(order['id']!, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
-                  const SizedBox(height: 6),
-                  Text(order['date']!, style: GoogleFonts.outfit(fontSize: 12, color: Colors.black54)),
-                  const SizedBox(height: 6),
-                  Text(order['items']!, style: GoogleFonts.outfit(fontSize: 12, color: Colors.black54)),
-                ],
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.delivery_dining_outlined, size: 40, color: Colors.grey.shade400),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(order['status']!, style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: isDelivered ? const Color(0xFF1E9C1C) : Colors.red)),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Text(order['amount']!, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.chevron_right, color: Colors.black54, size: 20),
-                    ],
-                  ),
-                ],
-              )
+              const SizedBox(height: 16),
+              Text(
+                filter == null ? "No Orders Yet" : "No ${filter.toUpperCase()} Orders",
+                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "When you accept and deliver orders, they will appear here.",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey.shade500),
+              ),
             ],
           ),
-        );
-      },
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: const Color(0xFF1E9C1C),
+      onRefresh: () => DeliveryService().fetchMyOrders(),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: filtered.length,
+        itemBuilder: (context, index) {
+          final order = filtered[index];
+          final String status = (order['status'] ?? 'pending').toString();
+          final bool isDelivered = status == "delivered";
+          final bool isCancelled = status == "cancelled";
+
+          final String orderNum = order['orderNumber'] ?? (order['_id'] != null ? "#${order['_id'].toString().substring(order['_id'].toString().length - 6).toUpperCase()}" : "Order");
+          final List items = order['items'] is List ? (order['items'] as List) : [];
+          final String itemsCountText = items.isNotEmpty ? "${items.length} ${items.length == 1 ? 'item' : 'items'}" : "Delivery Order";
+
+          String dateText = "Recent";
+          if (order['createdAt'] != null) {
+            try {
+              final dt = DateTime.parse(order['createdAt']).toLocal();
+              dateText = "${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
+            } catch (_) {}
+          }
+
+          final double fee = order['deliveryFeePaise'] != null && (order['deliveryFeePaise'] as num) > 0
+              ? (order['deliveryFeePaise'] as num) / 100.0
+              : 20.0;
+
+          final Color statusColor = isDelivered
+              ? const Color(0xFF1E9C1C)
+              : (isCancelled ? Colors.redAccent : Colors.orange);
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 3)),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(orderNum, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
+                    const SizedBox(height: 6),
+                    Text(dateText, style: GoogleFonts.outfit(fontSize: 12, color: Colors.black54)),
+                    const SizedBox(height: 6),
+                    Text(itemsCountText, style: GoogleFonts.outfit(fontSize: 12, color: Colors.black54)),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        status.replaceAll('_', ' ').toUpperCase(),
+                        style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text("₹${fee.toStringAsFixed(2)}", style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right, color: Colors.black54, size: 20),
+                      ],
+                    ),
+                  ],
+                )
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
