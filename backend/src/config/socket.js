@@ -71,6 +71,7 @@ const initSocket = (io) => {
 
   io.on('connection', (socket) => {
     const { userId, role } = socket.user;
+    console.log(`[Socket.io] Connected: userId=${userId}, role=${role}`);
     
     // 1. Every user joins their own private room
     socket.join(`user_${userId}`);
@@ -78,17 +79,32 @@ const initSocket = (io) => {
     // 2. Admins join the admin room
     if (role === 'admin') {
       socket.join('admin_room');
+      console.log(`[Socket.io] Joined admin_room: ${userId}`);
     }
     
     // 3. Delivery partners join the delivery room
     if (role === 'delivery') {
       socket.join('delivery_room');
+      console.log(`[Socket.io] Joined delivery_room: ${userId}`);
     }
     
     // Delivery partner can explicitly subscribe to a specific order tracking room
     socket.on('join_order_room', (orderId) => {
       if (role === 'delivery') {
         socket.join(`order_${orderId}`);
+      }
+    });
+
+    // Ticket chat room subscription
+    socket.on('join_ticket', (ticketId) => {
+      if (ticketId) {
+        socket.join(`ticket_${ticketId.toString()}`);
+      }
+    });
+
+    socket.on('leave_ticket', (ticketId) => {
+      if (ticketId) {
+        socket.leave(`ticket_${ticketId.toString()}`);
       }
     });
 
@@ -123,16 +139,30 @@ const initSocket = (io) => {
         await message.save();
         appendLog(`Message saved successfully with id: ${message._id}`);
         
-        const messageObj = message.toJSON();
+        const messageObj = {
+          ...message.toObject(),
+          _id: message._id.toString(),
+          ticketId: message.ticketId ? message.ticketId.toString() : (ticketId ? ticketId.toString() : undefined),
+          senderId: message.senderId ? message.senderId.toString() : (role === 'admin' ? 'admin' : userId),
+          receiverId: message.receiverId ? message.receiverId.toString() : '',
+          createdAt: message.createdAt ? message.createdAt.toISOString() : new Date().toISOString(),
+          updatedAt: message.updatedAt ? message.updatedAt.toISOString() : new Date().toISOString(),
+        };
+
+        // Broadcast to ticket room
+        if (ticketId) {
+          io.to(`ticket_${ticketId.toString()}`).emit('receive_message', messageObj);
+          appendLog(`Emitted to ticket_${ticketId}`);
+        }
 
         // Broadcast to receiver
         if (receiverId === 'admin') {
           // Send to all admins
           io.to('admin_room').emit('receive_message', messageObj);
           appendLog(`Emitted to admin_room`);
-        } else {
+        } else if (receiverId) {
           // Send to specific user
-          io.to(`user_${receiverId}`).emit('receive_message', messageObj);
+          io.to(`user_${receiverId.toString()}`).emit('receive_message', messageObj);
           appendLog(`Emitted to user_${receiverId}`);
         }
 
@@ -150,14 +180,40 @@ const initSocket = (io) => {
     socket.on('mark_as_read', async (data) => {
       try {
         const Message = require('../models/Message');
-        const { senderId, ticketId } = data;
-        // If admin is reading, receiver is 'admin'. If user is reading, receiver is their userId.
-        const currentReceiverId = role === 'admin' ? 'admin' : userId;
+        const Ticket = require('../models/Ticket');
+        const { ticketId } = data || {};
         
-        const query = { senderId: senderId, receiverId: currentReceiverId, isRead: false };
+        let query = { isRead: false };
         if (ticketId) query.ticketId = ticketId;
+
+        if (role === 'admin') {
+          query.senderId = { $ne: 'admin' };
+        } else {
+          query.senderId = 'admin';
+        }
         
-        await Message.updateMany(query, { $set: { isRead: true } });
+        const updateRes = await Message.updateMany(query, { $set: { isRead: true } });
+        if (updateRes.modifiedCount > 0 && ticketId) {
+          io.to(`ticket_${ticketId.toString()}`).emit('messages_read', {
+            ticketId: ticketId.toString(),
+            readerRole: role
+          });
+
+          if (role === 'admin') {
+            const ticketDoc = await Ticket.findById(ticketId);
+            if (ticketDoc && ticketDoc.userId) {
+              io.to(`user_${ticketDoc.userId.toString()}`).emit('messages_read', {
+                ticketId: ticketId.toString(),
+                readerRole: 'admin'
+              });
+            }
+          } else {
+            io.to('admin_room').emit('messages_read', {
+              ticketId: ticketId.toString(),
+              readerRole: role
+            });
+          }
+        }
       } catch (error) {
         console.error('Socket mark_as_read error:', error);
       }

@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
+const { evaluateIncentivesForPartner } = require('./incentiveController');
 
 const getAvailableOrders = async (req, res, next) => {
   try {
@@ -114,6 +115,9 @@ const updateDeliveryStatus = async (req, res, next) => {
           description: `Earning for Order #${order.orderNumber}`
         });
       }
+
+      // Check and credit any completed incentives automatically
+      await evaluateIncentivesForPartner(partnerId, req.app.get('io'));
     }
     
     await order.save();
@@ -391,6 +395,28 @@ const updatePreferences = async (req, res, next) => {
   }
 };
 
+const getMyOrders = async (req, res, next) => {
+  try {
+    const partnerId = req.auth.userId;
+    const filter = { deliveryPartner: partnerId };
+    if (req.query.status) {
+      if (req.query.status === 'delivered') {
+        filter.status = 'delivered';
+      } else if (req.query.status === 'cancelled') {
+        filter.status = 'cancelled';
+      } else if (req.query.status === 'active') {
+        filter.status = { $in: ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'] };
+      }
+    }
+    const orders = await Order.find(filter)
+      .sort({ updatedAt: -1 })
+      .lean();
+    res.status(200).json({ success: true, data: orders });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   updateProfile,
   completeOnboarding,
@@ -399,5 +425,6 @@ module.exports = {
   acceptOrder,
   updateDeliveryStatus,
   getPreferences,
-  updatePreferences
+  updatePreferences,
+  getMyOrders
 };

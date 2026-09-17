@@ -8,33 +8,41 @@ async function setupAdmin() {
     await mongoose.connect(process.env.MONGO_URI);
     console.log('Connected to MongoDB.');
 
-    const email = 'admin@nilara.com';
+    const emails = [
+      'admin@nilara.com',
+      'kdev7830@gmail.com',
+      'kapildev781885@gmail.com',
+      'cyberlimcare@gmail.com'
+    ];
     const password = 'admin123';
-    const displayName = 'Super Admin';
     const bcrypt = require('bcryptjs');
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Upsert user in MongoDB
-    console.log('Updating MongoDB user record...');
-    const dbUser = await User.findOneAndUpdate(
-      { email },
-      {
-        email,
-        password: hashedPassword,
-        displayName,
-        role: 'admin',
-        isActive: true,
-        permissions: ['all']
-      },
-      { new: true, upsert: true }
-    );
+    for (const email of emails) {
+      await User.findOneAndUpdate(
+        { email },
+        {
+          $set: {
+            email,
+            password: hashedPassword,
+            role: 'admin',
+            isActive: true,
+            permissions: ['all']
+          },
+          $setOnInsert: {
+            displayName: email === 'admin@nilara.com' ? 'Super Admin' : 'Admin User'
+          }
+        },
+        { returnDocument: 'after', upsert: true }
+      );
+      console.log(`Configured admin: ${email}`);
+    }
 
-    console.log('Admin user successfully configured in MongoDB!');
-    console.log('You can now log in with:');
-    console.log('Email:', email);
-    console.log('Password:', password);
+    console.log('\nAdmin users successfully configured in MongoDB!');
+    console.log('You can log in with any of these:');
+    emails.forEach(e => console.log(` - ${e} (password: ${password})`));
     
   } catch (error) {
     console.error('Error setting up admin:', error);

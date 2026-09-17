@@ -29,6 +29,8 @@ const createProduct = async (req, res, next) => {
       isActive: req.body.isActive !== undefined ? req.body.isActive : true
     });
 
+    await product.populate('category', 'name slug');
+
     await recordAudit({
       actorUserId: req.auth.userId,
       actorRole: req.auth.role,
@@ -56,10 +58,17 @@ const createProduct = async (req, res, next) => {
 const listProducts = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit) || 100;
     const skip = (page - 1) * limit;
 
-    const query = { isActive: true };
+    const query = {};
+    if (req.query.status === 'active' || req.query.isActive === 'true') {
+      query.isActive = true;
+    } else if (req.query.status === 'inactive' || req.query.isActive === 'false') {
+      query.isActive = false;
+    } else if (req.query.all !== 'true') {
+      query.isActive = true;
+    }
     
     // Optional category filter by slug or ID
     if (req.query.category) {
@@ -136,7 +145,9 @@ const updateProduct = async (req, res, next) => {
       req.params.id,
       { $set: updateFields },
       { new: true, runValidators: true }
-    ).select('-__v');
+    )
+    .populate('category', 'name slug')
+    .select('-__v');
 
     if (!product) {
       return res.status(404).json({

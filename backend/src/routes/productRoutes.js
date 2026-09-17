@@ -22,6 +22,7 @@ router.post('/', validate({ body: createProductSchema }), createProduct);
 
 router.use('/:id', validate({ params: objectIdParamSchema }));
 router.patch('/:id', validate({ body: updateProductSchema }), updateProduct);
+router.put('/:id', validate({ body: updateProductSchema }), updateProduct);
 router.delete('/:id', archiveProduct);
 
 module.exports = router;

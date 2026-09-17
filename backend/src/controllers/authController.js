@@ -104,12 +104,20 @@ const adminLogin = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ email, role: 'admin' });
+    const trimmedEmail = (email || '').trim().toLowerCase();
+    const user = await User.findOne({ email: trimmedEmail, role: 'admin' });
     
-    if (!user || !user.isActive) {
+    if (!user) {
       return res.status(401).json({
         success: false,
-        error: { code: 'UNAUTHORIZED', message: 'Invalid credentials or inactive account' }
+        error: { code: 'UNAUTHORIZED', message: 'No admin account found with this email address' }
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'This admin account is suspended or inactive' }
       });
     }
 
@@ -117,7 +125,7 @@ const adminLogin = async (req, res, next) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        error: { code: 'UNAUTHORIZED', message: 'Invalid credentials' }
+        error: { code: 'UNAUTHORIZED', message: 'Incorrect password. Please try again.' }
       });
     }
 

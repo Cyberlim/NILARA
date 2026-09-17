@@ -65,6 +65,26 @@ const updateOrderStatus = async (req, res, next) => {
       order.cancelledAt = new Date();
       // NOTE: We do not auto-refund stock here. Admins must handle stock manually or we add a complex rollback logic.
     }
+    if (status === 'delivered' && oldStatus !== 'delivered') {
+      order.deliveredAt = new Date();
+      if (order.deliveryPartner) {
+        const feeRupees = order.deliveryFeePaise > 0 ? (order.deliveryFeePaise / 100) : 20;
+        const partner = await User.findById(order.deliveryPartner);
+        if (partner) {
+          partner.walletBalance = (partner.walletBalance || 0) + feeRupees;
+          await partner.save();
+          await Transaction.create({
+            user: order.deliveryPartner,
+            type: 'credit',
+            amount: feeRupees,
+            order: order._id,
+            description: `Earning for Order #${order.orderNumber}`
+          });
+        }
+        const { evaluateIncentivesForPartner } = require('./incentiveController');
+        await evaluateIncentivesForPartner(order.deliveryPartner, req.app.get('io'));
+      }
+    }
     
     await order.save();
     
@@ -526,8 +546,28 @@ const markDeliveryDelivered = async (req, res, next) => {
       
       const order = await Order.findById(orderId);
       if (order) {
-        order.status = 'delivered';
-        await order.save();
+        if (order.status !== 'delivered') {
+          order.status = 'delivered';
+          order.deliveredAt = new Date();
+          await order.save();
+          if (order.deliveryPartner) {
+            const feeRupees = order.deliveryFeePaise > 0 ? (order.deliveryFeePaise / 100) : 20;
+            const partner = await User.findById(order.deliveryPartner);
+            if (partner) {
+              partner.walletBalance = (partner.walletBalance || 0) + feeRupees;
+              await partner.save();
+              await Transaction.create({
+                user: order.deliveryPartner,
+                type: 'credit',
+                amount: feeRupees,
+                order: order._id,
+                description: `Earning for Order #${order.orderNumber}`
+              });
+            }
+            const { evaluateIncentivesForPartner } = require('./incentiveController');
+            await evaluateIncentivesForPartner(order.deliveryPartner, req.app.get('io'));
+          }
+        }
         return res.json({ success: true, message: 'Order marked as delivered' });
       } else {
         return res.status(404).json({ success: false, message: 'Order not found' });

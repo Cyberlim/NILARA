@@ -15,8 +15,9 @@ const categorySchema = new mongoose.Schema({
   },
   imageUrl: {
     type: String,
-    required: true,
-    trim: true // Validated image url logic happens in zod/controller
+    required: false,
+    default: '',
+    trim: true
   },
   bannerTitle: {
     type: String,

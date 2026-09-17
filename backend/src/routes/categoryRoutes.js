@@ -22,6 +22,7 @@ router.post('/', validate({ body: createCategorySchema }), createCategory);
 
 router.use('/:id', validate({ params: objectIdParamSchema }));
 router.patch('/:id', validate({ body: updateCategorySchema }), updateCategory);
+router.put('/:id', validate({ body: updateCategorySchema }), updateCategory);
 router.delete('/:id', archiveCategory);
 
 module.exports = router;

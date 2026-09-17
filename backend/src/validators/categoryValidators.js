@@ -2,7 +2,7 @@ const { z } = require('zod');
 
 const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(100),
-  imageUrl: z.string().trim().url(),
+  imageUrl: z.string().trim().url().or(z.literal('')).optional().default(''),
   sortOrder: z.number().int().min(0).optional(),
   bannerTitle: z.string().trim().max(100).optional(),
   iconName: z.string().trim().max(50).optional(),
@@ -11,7 +11,7 @@ const createCategorySchema = z.object({
 
 const updateCategorySchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
-  imageUrl: z.string().trim().url().optional(),
+  imageUrl: z.string().trim().url().or(z.literal('')).optional(),
   sortOrder: z.number().int().min(0).optional(),
   bannerTitle: z.string().trim().max(100).optional(),
   iconName: z.string().trim().max(50).optional(),

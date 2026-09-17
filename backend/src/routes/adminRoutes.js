@@ -43,5 +43,12 @@ router.get('/payments', getPayments);
 router.post('/delivery-partners', validate({ body: createDeliveryPartnerSchema }), addDeliveryPartner);
 router.get('/delivery-partners', getAllDeliveryPartners);
 
+// Incentives & Campaigns
+const incentiveController = require('../controllers/incentiveController');
+router.get('/incentives', incentiveController.getAdminIncentives);
+router.post('/incentives', incentiveController.createIncentive);
+router.patch('/incentives/:id', incentiveController.updateIncentive);
+router.delete('/incentives/:id', incentiveController.deleteIncentive);
+
 module.exports = router;
 

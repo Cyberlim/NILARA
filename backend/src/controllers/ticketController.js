@@ -83,6 +83,35 @@ exports.getTicketMessages = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Not authorized to view these messages' });
     }
 
+    // Mark unread messages intended for the current viewer as read
+    const unreadFilter = role === 'admin'
+      ? { ticketId, senderId: { $ne: 'admin' }, isRead: false }
+      : { ticketId, senderId: 'admin', isRead: false };
+
+    const updateRes = await Message.updateMany(unreadFilter, { $set: { isRead: true } });
+
+    if (updateRes.modifiedCount > 0) {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`ticket_${ticketId.toString()}`).emit('messages_read', {
+          ticketId: ticketId.toString(),
+          readerRole: role
+        });
+
+        if (role === 'admin') {
+          io.to(`user_${ticket.userId.toString()}`).emit('messages_read', {
+            ticketId: ticketId.toString(),
+            readerRole: 'admin'
+          });
+        } else {
+          io.to('admin_room').emit('messages_read', {
+            ticketId: ticketId.toString(),
+            readerRole: role
+          });
+        }
+      }
+    }
+
     const messages = await Message.find({ ticketId }).sort({ createdAt: 1 }); // Oldest first
 
     res.status(200).json({ success: true, messages });
