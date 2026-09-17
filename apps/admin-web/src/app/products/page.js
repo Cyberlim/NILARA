@@ -25,34 +25,38 @@ export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchProducts = async () => {
+  const mapBackendProduct = (p) => {
+    const v = p.variants?.[0] || {};
+    const catName = typeof p.category === 'object' ? p.category?.name : (p.category || 'Uncategorized');
+    return {
+      id: p._id,
+      name: p.name,
+      variant: `${v.weightOrVolume || ''} ${v.unit || ''}`.trim(),
+      sku: v.sku || '',
+      category: catName || 'Uncategorized',
+      categoryColor: catName === 'Water' ? 'blue' : catName === 'Oil' ? 'orange' : 'teal',
+      price: (v.discountPricePaise || v.pricePaise || 0) / 100,
+      mrp: (v.pricePaise || 0) / 100,
+      stock: v.stockQuantity || 0,
+      stockStatus: (v.stockQuantity || 0) > 0 ? "In Stock" : "Out of Stock",
+      status: p.isActive ? "Active" : "Inactive",
+      sales: 0,
+      updatedDate: new Date(p.updatedAt || Date.now()).toLocaleDateString(),
+      updatedTime: new Date(p.updatedAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      image: p.images && p.images.length > 0 ? p.images[0] : null,
+      images: p.images || [],
+      tags: "",
+      description: p.description || ""
+    };
+  };
+
+  const fetchProducts = async (silent = false) => {
     try {
-      setIsLoading(true);
-      const res = await fetchWithAuth('/products');
-      // Map backend products to the structure needed by the table
-      const mapped = res.data.map(p => {
-        const v = p.variants[0] || {};
-        return {
-          id: p._id,
-          name: p.name,
-          variant: `${v.weightOrVolume || ''} ${v.unit || ''}`,
-          sku: v.sku || '',
-          category: p.category?.name || 'Uncategorized',
-          categoryColor: p.category?.name === 'Water' ? 'blue' : p.category?.name === 'Oil' ? 'orange' : 'teal',
-          price: (v.discountPricePaise || v.pricePaise || 0) / 100,
-          mrp: v.pricePaise / 100,
-          stock: v.stockQuantity || 0,
-          stockStatus: v.stockQuantity > 0 ? "In Stock" : "Out of Stock",
-          status: p.isActive ? "Active" : "Inactive",
-          sales: 0,
-          updatedDate: new Date(p.updatedAt).toLocaleDateString(),
-          updatedTime: new Date(p.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          image: p.images && p.images.length > 0 ? p.images[0] : null,
-          images: p.images,
-          tags: "",
-          description: p.description
-        };
-      });
+      if (!silent && products.length === 0) {
+        setIsLoading(true);
+      }
+      const res = await fetchWithAuth('/products?all=true&limit=100');
+      const mapped = (res.data || []).map(mapBackendProduct);
       setProducts(mapped);
     } catch (err) {
       console.error("Failed to load products", err);
@@ -64,6 +68,22 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  const handleProductSuccess = (savedProduct, isEditing) => {
+    setIsFormOpen(false);
+    if (!savedProduct) {
+      fetchProducts(true);
+      return;
+    }
+    const mapped = mapBackendProduct(savedProduct);
+    if (isEditing) {
+      // Update ONLY the modified product in place without touching any other product
+      setProducts(prev => prev.map(p => p.id === mapped.id ? { ...p, ...mapped } : p));
+    } else {
+      // Add the new product to the list without refreshing other products
+      setProducts(prev => [mapped, ...prev]);
+    }
+  };
 
   const openForm = (product = null) => {
     setProductToEdit(product);
@@ -119,14 +139,15 @@ export default function ProductsPage() {
       />
 
       {/* Main Table */}
-      {isLoading ? (
+      {isLoading && products.length === 0 ? (
         <div className="py-20 text-center text-slate-500 font-medium">Loading products...</div>
       ) : (
         <ProductsTable
           products={products}
           onRowClick={handleRowClick}
           onEditClick={openForm}
-          onRefresh={fetchProducts}
+          onRefresh={() => fetchProducts(true)}
+          onDelete={(id) => setProducts(prev => prev.filter(p => p.id !== id))}
         />
       )}
 
@@ -148,10 +169,7 @@ export default function ProductsPage() {
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         productToEdit={productToEdit}
-        onSuccess={() => {
-          setIsFormOpen(false);
-          fetchProducts();
-        }}
+        onSuccess={handleProductSuccess}
       />
 
       {/* Export Modal */}

@@ -92,33 +92,39 @@ export default function CategoryFormModal({ isOpen, onClose, categoryToEdit, onS
       }
 
       const payload = {
-        name: formData.name,
-        bannerTitle: formData.description,
-        iconName: formData.iconName,
-        subcategories: formData.subcategories.split(",").map(s => s.trim()).filter(s => s),
+        name: formData.name.trim(),
+        bannerTitle: formData.description?.trim() || "",
+        iconName: formData.iconName?.trim() || "",
+        subcategories: formData.subcategories
+          ? formData.subcategories.split(",").map(s => s.trim()).filter(Boolean)
+          : [],
         isActive: formData.status === "Active",
         imageUrl: finalImageUrl || ""
       };
 
+      let savedCategory = null;
       if (isEditing) {
-        await fetchWithAuth(`/categories/${categoryToEdit.id}`, {
-          method: 'PUT',
+        const categoryId = categoryToEdit?.id || categoryToEdit?._id;
+        const res = await fetchWithAuth(`/categories/${categoryId}`, {
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+        savedCategory = res.data;
       } else {
-        await fetchWithAuth('/categories', {
+        const res = await fetchWithAuth('/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+        savedCategory = res.data;
       }
 
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(savedCategory, isEditing);
       onClose();
     } catch (err) {
       console.error("Failed to save category:", err);
-      alert("Failed to save category. Please try again.");
+      alert(err.message || "Failed to save category. Please try again.");
     } finally {
       setIsSaving(false);
     }

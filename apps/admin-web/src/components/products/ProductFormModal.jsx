@@ -155,19 +155,23 @@ export default function ProductFormModal({ isOpen, onClose, productToEdit, onSuc
       }
 
       // 3. Save Product
+      let savedProduct = null;
       if (isEditing) {
-        await fetchWithAuth(`/products/${productToEdit.id}`, {
+        const productId = productToEdit?.id || productToEdit?._id;
+        const res = await fetchWithAuth(`/products/${productId}`, {
           method: 'PATCH',
           body: JSON.stringify(payload)
         });
+        savedProduct = res.data;
       } else {
-        await fetchWithAuth('/products', {
+        const res = await fetchWithAuth('/products', {
           method: 'POST',
           body: JSON.stringify(payload)
         });
+        savedProduct = res.data;
       }
       
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(savedProduct, isEditing);
       else onClose();
       
     } catch (err) {

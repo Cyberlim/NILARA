@@ -2,7 +2,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v
 
 export async function fetchWithAuth(endpoint, options = {}) {
   // Can only access localStorage on the client side
-  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_auth_token') : null;
+  const token = typeof window !== 'undefined' 
+    ? (localStorage.getItem('admin_auth_token') || localStorage.getItem('adminToken')) 
+    : null;
   
   const headers = {
     'Content-Type': 'application/json',

@@ -20,7 +20,7 @@ const STATUSES = ["Active", "Inactive"];
 const STOCK_STATUSES = ["In Stock", "Low Stock", "Out of Stock"];
 const PAGE_SIZE = 8;
 
-export default function ProductsTable({ products = [], onRowClick, onEditClick, onRefresh }) {
+export default function ProductsTable({ products = [], onRowClick, onEditClick, onRefresh, onDelete }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -61,7 +61,8 @@ export default function ProductsTable({ products = [], onRowClick, onEditClick, 
     try {
       setIsDeleting(id);
       await fetchWithAuth(`/products/${id}`, { method: 'DELETE' });
-      if (onRefresh) onRefresh();
+      if (onDelete) onDelete(id);
+      else if (onRefresh) onRefresh();
     } catch (err) {
       alert(err.message || "Failed to delete product");
     } finally {

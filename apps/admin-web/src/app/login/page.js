@@ -26,7 +26,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       const data = await response.json();
@@ -124,7 +124,24 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-8 text-center text-xs font-semibold text-slate-400">
+        <div className="mt-6 p-3.5 bg-slate-50/80 backdrop-blur-sm border border-slate-200/80 rounded-2xl flex items-center justify-between">
+          <div className="text-left">
+            <div className="text-[11px] font-bold text-slate-700">Admin Credentials</div>
+            <div className="text-[10px] text-slate-500 font-mono mt-0.5">admin@nilara.com • admin123</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail("admin@nilara.com");
+              setPassword("admin123");
+            }}
+            className="px-3 py-1.5 bg-white hover:bg-cyan-50 border border-slate-200 hover:border-cyan-300 text-cyan-700 text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95"
+          >
+            Auto-fill
+          </button>
+        </div>
+
+        <div className="mt-6 text-center text-xs font-semibold text-slate-400">
           Secure, authenticated access only.
         </div>
       </div>

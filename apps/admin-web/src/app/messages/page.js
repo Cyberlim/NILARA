@@ -32,6 +32,7 @@ const formatDividerDate = (dateString) => {
 export default function SupportPage() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [chatLoading, setChatLoading] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [roleSection, setRoleSection] = useState("all"); // "all" | "customer" | "delivery"
   const [ticketStatusFilter, setTicketStatusFilter] = useState("open"); // "open" | "closed"
@@ -42,10 +43,46 @@ export default function SupportPage() {
   const [showChatMobile, setShowChatMobile] = useState(false);
   const messagesEndRef = useRef(null);
   const searchParams = useSearchParams();
+  const selectedTicketIdRef = useRef(selectedTicketId);
 
-  // 1. Initialize Socket.IO connection
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem('admin_auth_token') : null;
+    selectedTicketIdRef.current = selectedTicketId;
+  }, [selectedTicketId]);
+
+  const loadTickets = async () => {
+    try {
+      const data = await fetchWithAuth('/tickets');
+      if (data && data.success) {
+        setTickets(data.tickets || []);
+        return data.tickets || [];
+      }
+      return [];
+    } catch (err) {
+      console.error("Failed to load tickets", err);
+      return [];
+    }
+  };
+
+  const loadTicketHistory = async (ticketId, isSilent = false) => {
+    if (!ticketId) return;
+    if (!isSilent) setChatLoading(true);
+    try {
+      const data = await fetchWithAuth(`/tickets/${ticketId}/messages`);
+      if (data && data.success && Array.isArray(data.messages)) {
+        setMessages(data.messages);
+      }
+    } catch (err) {
+      console.error("Failed to load ticket history", err);
+    } finally {
+      if (!isSilent) setChatLoading(false);
+    }
+  };
+
+  // 1. Initialize Socket.IO connection ONCE on mount
+  useEffect(() => {
+    const token = typeof window !== "undefined" 
+      ? (localStorage.getItem('admin_auth_token') || localStorage.getItem('adminToken')) 
+      : null;
     const newSocket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', {
       auth: { token }
     });
@@ -54,24 +91,47 @@ export default function SupportPage() {
 
     newSocket.on("connect", () => {
       console.log("Connected to support socket server");
+      if (selectedTicketIdRef.current) {
+        newSocket.emit("join_ticket", selectedTicketIdRef.current);
+      }
     });
 
     newSocket.on("receive_message", (message) => {
-      setMessages((prev) => {
-        if (selectedTicketId && message.ticketId === selectedTicketId) {
-          if (!prev.find(m => m._id === message._id)) {
+      const currentSelected = selectedTicketIdRef.current;
+      if (currentSelected && String(message.ticketId) === String(currentSelected)) {
+        setMessages((prev) => {
+          if (!prev.find(m => String(m._id) === String(message._id))) {
             return [...prev, message];
           }
+          return prev;
+        });
+
+        // If admin is actively looking at this ticket, mark incoming message as read immediately
+        if (message.senderId !== 'admin') {
+          newSocket.emit("mark_as_read", { ticketId: currentSelected });
         }
-        return prev;
-      });
+      }
 
       // Refresh ticket list to update lastMessage and unread flags
       loadTickets();
     });
 
-    return () => newSocket.close();
-  }, [selectedTicketId]);
+    newSocket.on("messages_read", (data) => {
+      const currentSelected = selectedTicketIdRef.current;
+      if (currentSelected && String(data?.ticketId) === String(currentSelected)) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.senderId === 'admin' ? { ...m, isRead: true } : m
+          )
+        );
+      }
+      loadTickets();
+    });
+
+    return () => {
+      newSocket.close();
+    };
+  }, []);
 
   // 2. Load tickets on mount & handle URL query parameters
   useEffect(() => {
@@ -84,10 +144,10 @@ export default function SupportPage() {
 
       let targetTicket = null;
       if (ticketIdFromUrl) {
-        targetTicket = loadedTickets.find(t => t._id === ticketIdFromUrl);
+        targetTicket = loadedTickets.find(t => String(t._id) === String(ticketIdFromUrl));
       }
       if (!targetTicket && userIdFromUrl) {
-        targetTicket = loadedTickets.find(t => t.userId === userIdFromUrl);
+        targetTicket = loadedTickets.find(t => String(t.userId) === String(userIdFromUrl));
       }
 
       if (targetTicket) {
@@ -111,7 +171,7 @@ export default function SupportPage() {
         } else {
           setSelectedTicketId(null);
         }
-      } else if (loadedTickets?.length > 0 && !selectedTicketId) {
+      } else if (loadedTickets?.length > 0 && !selectedTicketIdRef.current) {
         // Automatically select the first open ticket and switch to its section
         const firstOpen = loadedTickets.find(t => t.status === 'open');
         if (firstOpen) {
@@ -125,44 +185,37 @@ export default function SupportPage() {
     });
   }, [searchParams]);
 
-  const loadTickets = async () => {
-    try {
-      const data = await fetchWithAuth('/tickets');
-      if (data && data.success) {
-        setTickets(data.tickets || []);
-        return data.tickets || [];
-      }
-      return [];
-    } catch (err) {
-      console.error("Failed to load tickets", err);
-      return [];
-    }
-  };
-
-  // 3. Load full chat history when ticket is selected
+  // 3. Load full chat history & manage ticket room when ticket changes
   useEffect(() => {
     if (selectedTicketId) {
       loadTicketHistory(selectedTicketId);
-      const selectedTicket = tickets.find(t => t._id === selectedTicketId);
-      if (socket && selectedTicket) {
-        socket.emit("mark_as_read", { senderId: selectedTicket.userId, ticketId: selectedTicketId });
-        loadTickets();
+
+      if (socket) {
+        socket.emit("join_ticket", selectedTicketId);
+        socket.emit("mark_as_read", { ticketId: selectedTicketId });
+        setTickets(prev => prev.map(t => {
+          if (String(t._id) === String(selectedTicketId) && t.lastMessage) {
+            return { ...t, lastMessage: { ...t.lastMessage, isRead: true } };
+          }
+          return t;
+        }));
       }
+
+      // Silent sync interval every 3 seconds for 100% real-time reliability
+      const interval = setInterval(() => {
+        loadTicketHistory(selectedTicketId, true);
+      }, 3000);
+
+      return () => {
+        clearInterval(interval);
+        if (socket) {
+          socket.emit("leave_ticket", selectedTicketId);
+        }
+      };
     } else {
       setMessages([]);
     }
   }, [selectedTicketId, socket]);
-
-  const loadTicketHistory = async (ticketId) => {
-    try {
-      const data = await fetchWithAuth(`/tickets/${ticketId}/messages`);
-      if (data && data.success) {
-        setMessages(data.messages || []);
-      }
-    } catch (err) {
-      console.error("Failed to load ticket history", err);
-    }
-  };
 
   // 4. Auto scroll to bottom of chat
   useEffect(() => {
@@ -208,14 +261,15 @@ export default function SupportPage() {
 
   const sendMessage = (e) => {
     e.preventDefault();
-    if (!inputText.trim() || !selectedTicketId || !socket) return;
+    const text = inputText.trim();
+    if (!text || !selectedTicketId || !socket) return;
     
-    const selectedTicket = tickets.find(t => t._id === selectedTicketId);
-    if (!selectedTicket || selectedTicket.status === 'closed') return;
+    const activeTicket = tickets.find(t => String(t._id) === String(selectedTicketId));
+    if (!activeTicket || activeTicket.status === 'closed') return;
 
     const messageData = {
-      receiverId: selectedTicket.userId,
-      text: inputText,
+      receiverId: activeTicket.userId,
+      text: text,
       ticketId: selectedTicketId
     };
     
@@ -292,24 +346,24 @@ export default function SupportPage() {
     });
   }, [tickets, roleSection, ticketStatusFilter, searchQuery]);
 
-  // Keep selectedTicketId strictly aligned with the current filtered list
+  // Keep selectedTicketId aligned with the current filtered list
   useEffect(() => {
     if (loading) return;
     if (filteredTickets.length > 0) {
-      const exists = filteredTickets.some(t => t._id === selectedTicketId);
+      const exists = filteredTickets.some(t => String(t._id) === String(selectedTicketId));
       if (!exists) {
         setSelectedTicketId(filteredTickets[0]._id);
       }
-    } else {
-      setSelectedTicketId(null);
     }
   }, [filteredTickets, loading, selectedTicketId]);
 
-  // Selected ticket must belong to the active filteredTickets view to prevent profile mismatch
+  // Selected ticket
   const selectedTicket = useMemo(() => {
     if (!selectedTicketId) return null;
-    return filteredTickets.find(t => t._id === selectedTicketId) || null;
-  }, [filteredTickets, selectedTicketId]);
+    return filteredTickets.find(t => String(t._id) === String(selectedTicketId)) || 
+           tickets.find(t => String(t._id) === String(selectedTicketId)) || 
+           null;
+  }, [filteredTickets, tickets, selectedTicketId]);
 
   const isSelectedDelivery = selectedTicket?.user?.role === 'delivery';
 
@@ -479,7 +533,7 @@ export default function SupportPage() {
             ) : filteredTickets.length > 0 ? (
               filteredTickets.map(ticket => {
                 const isDelivery = ticket.user?.role === 'delivery';
-                const isSelected = selectedTicketId === ticket._id;
+                const isSelected = String(selectedTicketId) === String(ticket._id);
                 const hasUnread = ticket.lastMessage?.senderId === ticket.userId && !ticket.lastMessage?.isRead;
                 const displayName = ticket.user?.displayName || ticket.user?.email || "Unknown User";
 
@@ -487,7 +541,11 @@ export default function SupportPage() {
                   <div 
                     key={ticket._id}
                     onClick={() => {
-                      setSelectedTicketId(ticket._id);
+                      if (String(selectedTicketId) === String(ticket._id)) {
+                        loadTicketHistory(ticket._id);
+                      } else {
+                        setSelectedTicketId(ticket._id);
+                      }
                       setShowChatMobile(true);
                     }}
                     className={`p-3.5 flex items-start space-x-3 cursor-pointer transition-colors border-b border-slate-100 ${
@@ -629,6 +687,15 @@ export default function SupportPage() {
                 </div>
 
                 <div className="flex items-center space-x-2">
+                  <button 
+                    type="button"
+                    onClick={() => selectedTicketId && loadTicketHistory(selectedTicketId)}
+                    title="Refresh messages"
+                    className="p-1.5 text-slate-500 hover:text-teal-600 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${chatLoading ? 'animate-spin text-teal-600' : ''}`} />
+                  </button>
+
                   {selectedTicket.status === 'open' ? (
                     <button 
                       onClick={closeTicket}
@@ -652,42 +719,59 @@ export default function SupportPage() {
               {/* Chat Messages */}
               <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 custom-scrollbar space-y-4">
                 <div className="max-w-4xl mx-auto w-full space-y-4">
-                  {messages.map((msg, idx) => {
-                    const isMe = msg.senderId === 'admin';
-                    const showDate = idx === 0 || formatDividerDate(messages[idx - 1].createdAt) !== formatDividerDate(msg.createdAt);
+                  {chatLoading && messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                      <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                      <p className="text-xs font-medium">Loading messages...</p>
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                      <MessageSquare className="w-8 h-8 text-slate-300 mb-2" />
+                      <p className="text-xs font-semibold text-slate-600 mb-1">No messages yet</p>
+                      <p className="text-[11px] text-slate-400">Type a message below to start chatting with {selectedTicket.user?.displayName || 'the user'}.</p>
+                    </div>
+                  ) : (
+                    messages.map((msg, idx) => {
+                      const isMe = msg.senderId === 'admin';
+                      const showDate = idx === 0 || formatDividerDate(messages[idx - 1].createdAt) !== formatDividerDate(msg.createdAt);
 
-                    return (
-                      <React.Fragment key={msg._id || idx}>
-                        {showDate && (
-                          <div className="flex justify-center my-3">
-                            <span className="px-3 py-1 bg-slate-200/70 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                              {formatDividerDate(msg.createdAt)}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[75%] ${isMe ? 'order-1' : 'order-2'}`}>
-                            <div className={`p-3.5 rounded-2xl ${
-                              isMe 
-                                ? 'bg-slate-900 text-white rounded-tr-sm shadow-sm' 
-                                : 'bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm'
-                            }`}>
-                              <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                            </div>
-                            <div className={`flex items-center gap-1 mt-1 text-[10px] font-medium text-slate-400 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                              <span>
-                                {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                      return (
+                        <React.Fragment key={msg._id || idx}>
+                          {showDate && (
+                            <div className="flex justify-center my-3">
+                              <span className="px-3 py-1 bg-slate-200/70 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                {formatDividerDate(msg.createdAt)}
                               </span>
-                              {isMe && (
-                                <CheckCheck className="w-3.5 h-3.5 text-teal-400" />
-                              )}
+                            </div>
+                          )}
+
+                          <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[75%] ${isMe ? 'order-1' : 'order-2'}`}>
+                              <div className={`p-3.5 rounded-2xl ${
+                                isMe 
+                                  ? 'bg-slate-900 text-white rounded-tr-sm shadow-sm' 
+                                  : 'bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm'
+                              }`}>
+                                <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                              </div>
+                              <div className={`flex items-center gap-1 mt-1 text-[10px] font-medium text-slate-400 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                <span>
+                                  {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                </span>
+                                {isMe && (
+                                  msg.isRead ? (
+                                    <CheckCheck className="w-3.5 h-3.5 text-teal-400" title="Seen by user" />
+                                  ) : (
+                                    <Check className="w-3.5 h-3.5 text-slate-400" title="Sent / Delivered" />
+                                  )
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </React.Fragment>
-                    );
-                  })}
+                        </React.Fragment>
+                      );
+                    })
+                  )}
                   <div ref={messagesEndRef} />
                 </div>
               </div>

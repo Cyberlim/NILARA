@@ -22,29 +22,46 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchCategories = async () => {
+  const mapBackendCategory = (c) => ({
+    id: c._id,
+    name: c.name,
+    description: c.bannerTitle || "No description",
+    status: c.isActive ? "Active" : "Inactive",
+    products: 0, // Mock for now, could be fetched
+    inventory: 0,
+    subcategories: c.subcategories || [],
+    iconName: c.iconName || "",
+    updatedDate: new Date(c.updatedAt || Date.now()).toLocaleDateString(),
+    image: c.imageUrl
+  });
+
+  const fetchCategories = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent && categories.length === 0) {
+        setIsLoading(true);
+      }
       const { fetchWithAuth } = await import('@/lib/api');
-      const res = await fetchWithAuth('/categories');
-      
-      const mapped = res.data.map(c => ({
-        id: c._id,
-        name: c.name,
-        description: c.bannerTitle || "No description",
-        status: c.isActive ? "Active" : "Inactive",
-        products: 0, // Mock for now, could be fetched
-        inventory: 0,
-        subcategories: c.subcategories || [],
-        iconName: c.iconName || "",
-        updatedDate: new Date(c.updatedAt).toLocaleDateString(),
-        image: c.imageUrl
-      }));
+      const res = await fetchWithAuth('/categories?all=true');
+      const mapped = (res.data || []).map(mapBackendCategory);
       setCategories(mapped);
     } catch (err) {
       console.error("Failed to fetch categories:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCategorySuccess = (savedCategory, isEditing) => {
+    setIsFormModalOpen(false);
+    if (!savedCategory) {
+      fetchCategories(true);
+      return;
+    }
+    const mapped = mapBackendCategory(savedCategory);
+    if (isEditing) {
+      setCategories(prev => prev.map(c => c.id === mapped.id ? { ...c, ...mapped } : c));
+    } else {
+      setCategories(prev => [...prev, mapped]);
     }
   };
 
@@ -135,7 +152,7 @@ export default function CategoriesPage() {
         isOpen={isFormModalOpen}
         onClose={() => setIsFormModalOpen(false)}
         categoryToEdit={categoryToEdit}
-        onSuccess={fetchCategories}
+        onSuccess={handleCategorySuccess}
       />
 
     </div>

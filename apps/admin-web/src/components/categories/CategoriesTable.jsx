@@ -43,8 +43,16 @@ export default function CategoriesTable({ categories = [], onRowClick, onEditCli
     setCurrentPage(1);
   };
 
-  const handleDelete = (id) => {
-    setLocalCategories(prev => prev.filter(c => c.id !== id));
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this category?")) return;
+    try {
+      const { fetchWithAuth } = await import('@/lib/api');
+      await fetchWithAuth(`/categories/${id}`, { method: 'DELETE' });
+      setLocalCategories(prev => prev.filter(c => c.id !== id));
+    } catch (err) {
+      console.error("Failed to delete category:", err);
+      alert(err.message || "Failed to delete category.");
+    }
   };
 
   const filtered = localCategories.filter(c => {
