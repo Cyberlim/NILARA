@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "460372603542",
+    "project_id": "nilara-83b61",
+    "storage_bucket": "nilara-83b61.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:460372603542:android:0aa62ac85a4dda7a9f48b7",
+        "android_client_info": {
+          "package_name": "com.example.blinkit_clone"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "460372603542-7fcse2vm7g9fhrpanqdrsl9dshgdllhk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.blinkit_clone",
+            "certificate_hash": "fafae86e52799e6622b932bf4d247e8487f6eab7"
+          }
+        },
+        {
+          "client_id": "460372603542-bro4sp8fo1ud1arl3bp33evevnhagm19.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAO-mha02w0KW71CeK-dui_LCvKN6JmMvc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "460372603542-bro4sp8fo1ud1arl3bp33evevnhagm19.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
